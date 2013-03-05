@@ -14,6 +14,16 @@ public class Values{
 	public static InetAddress multicast_backup_group_address;
 	public static InetAddress multicast_restore_group_address;
 	
+	public static final String backup_chunk_data_message_identifier = "PUTCHUNK";
+	public static final String stored_chunk_control_message_identifier = "STORED";
+	public static final String recover_chunk_control_message_identifier = "GETCHUNK";
+	public static final String send_chunk_data_message_identifier = "CHUNK";
+	public static final String file_deleted_control_message_identifier = "DELETE";
+	public static final String diskSpace_reclaimed_control_message_identifier = "REMOVED";
+	
+	
+	public static final byte header_end_first_byte = 0xD;
+	public static final byte header_end_second_byte = 0xA;
 	
 	public static int getMulticast_control_group_port() {
 		return multicast_control_group_port;
