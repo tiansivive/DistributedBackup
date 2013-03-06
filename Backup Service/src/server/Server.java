@@ -18,6 +18,9 @@ public class Server{
 	}
 	
 	
+	/**
+	 * Run_threads.
+	 */
 	public void run_threads(){
 		
 		control_thread = new ControlChannelThread();
@@ -32,8 +35,12 @@ public class Server{
 		restore_thread.start();	
 	}
 	
-
- 	public static void initialize_sockets() throws IOException{
+ 	/**
+	  * Initialize_sockets.
+	  *
+	  * @throws IOException Signals that an I/O exception has occurred.
+	  */
+	 public static void initialize_sockets() throws IOException{
 
 		ControlChannelThread.init_socket();
 		BackupChannelThread.init_socket();
