@@ -28,17 +28,19 @@ public class BackupChannelThread extends ChannelThread {
     public void run(){
         
 		
-		byte[] buffer = new byte[64000];
+		byte[] buffer = new byte[65000];
 		DatagramPacket datagram = new DatagramPacket(buffer, buffer.length);
 		while(true){
 			System.out.println("Waiting for message");
 			//System.out.println(multicast_backup_socket.);
 			try{
 				multicast_backup_socket.receive(datagram);
+								
+				System.out.println("Received " + datagram.getLength() + " bytes...");
 			}catch(IOException e){
 				// TODO Auto-generated catch block
 				e.printStackTrace();
-			}
+			} 
 		}
     }
 	

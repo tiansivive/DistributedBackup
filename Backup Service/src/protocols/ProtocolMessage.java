@@ -3,6 +3,7 @@ package protocols;
 
 public class ProtocolMessage{
 	
+
 	private Header header;
 	private Body body;
 	
@@ -31,6 +32,32 @@ public class ProtocolMessage{
 	}
 	
 	
+	public byte[] toBytes(){
+		
+		//TODO turn object Header and object Body into bytes.
+		
+		return null;
+	}
+	
+	public static byte[] toBytes(String head, byte[] body){
+		
+		int headStringLength = head.getBytes().length;
+		int CRLF_length = Header.getCRLF().length;
+		
+		
+		byte[] headBuf = new byte[headStringLength + CRLF_length*2]; //length of the header information plus length of both <CRLF>
+		byte[] protocolBuf = new byte[headBuf.length + body.length];
+		
+		System.arraycopy(head.getBytes(), 0, headBuf, 0, headStringLength);
+		System.arraycopy(Header.getCRLF(), 0, headBuf, headStringLength, CRLF_length); //First header CRLF
+		System.arraycopy(Header.getCRLF(), 0, headBuf, headStringLength + CRLF_length, CRLF_length); //Second header CRLF
+		
+		System.arraycopy(headBuf, 0, protocolBuf, 0, headBuf.length);
+		System.arraycopy(body, 0, protocolBuf, headBuf.length, body.length);
+			
+		return protocolBuf;		
+	}
+	
 	
 	public Header getHeader(){
 		return header;
@@ -44,9 +71,6 @@ public class ProtocolMessage{
 	public void setBody(Body body){
 		this.body = body;
 	}
-	
-	
-	
 	
 	
 }

@@ -25,6 +25,9 @@ public class Values{
 	public static final byte header_end_second_byte = 0xA;
 	
 	
+	public static String protocol_version = "1.0";
+	
+	
 	
 	
 	public static int getMulticast_control_group_port() {
@@ -85,6 +88,12 @@ public class Values{
 	public static void setMulticast_restore_group_address(
 			String multicast_restore_group_address) throws UnknownHostException {
 		Values.multicast_restore_group_address = InetAddress.getByName(multicast_restore_group_address);
+	}
+	public static String getProtocol_version() {
+		return protocol_version;
+	}
+	public static void setProtocol_version(String protocol_version) {
+		Values.protocol_version = protocol_version;
 	}
 
 	

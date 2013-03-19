@@ -3,7 +3,7 @@ package server;
 import java.io.IOException;
 import java.net.UnknownHostException;
 import constantValues.*;
-
+import java.nio.*;
 
 public class Start{
 
@@ -38,6 +38,7 @@ public class Start{
 			System.out.println("Missing arguments, try again");
 			System.exit(-1);	
 		}
+		
 		
 		new Server().mainLoop();
 	}

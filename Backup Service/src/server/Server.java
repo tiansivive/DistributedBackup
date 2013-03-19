@@ -29,7 +29,7 @@ public class Server{
 	public void mainLoop() {
 		run_threads();
 
-		/*Gson gson = new Gson();
+		Gson gson = new Gson();
 		BufferedReader bufferedReader = null;
 
 		try {
@@ -56,7 +56,7 @@ public class Server{
 			} else {
 				System.out.println("The file/dir "+file.getName()+" doesn't exist!");
 			}
-		}*/
+		}
 	}
 
 	public void send_directory(File directory, int replicationDegree) {
@@ -74,26 +74,53 @@ public class Server{
 
 	public void send_file(final File file, final int replicationDegree) {
 
-
-		String fileIdentifier;
-		System.out.println("Sending file "+file.getName()+" with replication degree: "+replicationDegree+" size: "+file.length());
-		System.out.println("File identifier: "+(fileIdentifier = HashString.getFileIdentifier(file)));
+		String fileIdentifier = HashString.getFileIdentifier(file);
+		
+			
 		try {
+			
 			FileInputStream fileInputStream = new FileInputStream(file);
 			byte[] dataBytes = new byte[64000];
-			int nread = -1;
+			int chunkSize = -1;
 			int chunkNum = 0;
-			while ((nread = fileInputStream.read(dataBytes)) != -1) {
-				System.out.println("nread: "+nread);
-				String head = ""+Values.backup_chunk_data_message_identifier+" 1.0 "+fileIdentifier+" "+chunkNum+" "+replicationDegree;
-				System.out.println(head);
-				ProtocolMessage protocolMessage = new ProtocolMessage(head, dataBytes);
-				DatagramPacket packet = new DatagramPacket(dataBytes, dataBytes.length, Values.multicast_backup_group_address, Values.multicast_backup_group_port);
-				System.out.println(packet.getData().length);
+			
+			System.out.println("\n\n------------------------SENDING FILE------------------------\n"
+					+ "\nFilename: " + file.getName() 
+					+ "\nSize: " + file.length() 
+					+ "\nProtocol version: " + Values.protocol_version
+					+ "\nFile identifier: " + fileIdentifier
+					+ "\nReplication degree: " + replicationDegree);
+			
+			while ((chunkSize = fileInputStream.read(dataBytes)) != -1){//read from file into dataBytes
+				
+				if(chunkSize < 64000){
+					
+					dataBytes = new byte[chunkSize];
+					fileInputStream.read(dataBytes);
+				}
+				
+				System.out.println("\nSENDING CHUNK NUMBER: " + chunkNum);
+				System.out.println("Chunk size: " + chunkSize);
+				
+				String head = Values.backup_chunk_data_message_identifier + " "
+									+ Values.protocol_version + " "
+									+ fileIdentifier + " "
+									+ chunkNum + " "
+									+ replicationDegree;
+				
+				System.out.println("HEADER: " + head);
+				
+				byte[] buf = ProtocolMessage.toBytes(head, dataBytes);
+				
+				DatagramPacket packet = new DatagramPacket(buf, buf.length, Values.multicast_backup_group_address, Values.multicast_backup_group_port);
 				BackupChannelThread.getMulticast_backup_socket().send(packet);
-				System.out.println("Sent");
+				
+				System.out.println("\nSent " + packet.getLength() + " bytes");
+				System.out.println("------------Chunk sent------------\n\n");
 				chunkNum++;
 			}
+			
+			fileInputStream.close();
 
 		} catch (IOException e) {
 			e.printStackTrace();

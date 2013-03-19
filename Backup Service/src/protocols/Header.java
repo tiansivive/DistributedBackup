@@ -1,17 +1,20 @@
 package protocols;
 
+import java.io.Serializable;
+
 import constantValues.Values;
 
 
 public class Header{
 	
+
 	private String messageType;
 	private String version;
 	private String fileID;
 	private int chunkNumber;
 	private int replicationDegree;
 	
-	private byte[] CRLF = new byte[]{Values.header_end_first_byte, Values.header_end_second_byte}; 
+	private static byte[] CRLF = new byte[]{Values.header_end_first_byte, Values.header_end_second_byte}; 
 
 	public Header(){
 		
@@ -20,7 +23,7 @@ public class Header{
 		this.fileID = null;
 		this.chunkNumber = -1;
 		this.replicationDegree = -1;
-		this.setCRLF(null);
+		Header.setCRLF(null);
 	}
 	
 	public Header(String info){
@@ -42,7 +45,7 @@ public class Header{
 		this.chunkNumber = chunkNo;
 		this.replicationDegree = replicaDegree;
 	}
-
+	
 	
 	public String getMessageType(){
 		return messageType;
@@ -75,12 +78,12 @@ public class Header{
 		this.replicationDegree = replicationDegree;
 	}
 
-	public byte[] getCRLF(){
-		return this.CRLF;
+	public static byte[] getCRLF(){
+		return Header.CRLF;
 	}
 
-	public void setCRLF(byte[] cRLF){
-		this.CRLF = cRLF;
+	public static void setCRLF(byte[] cRLF){
+		Header.CRLF = cRLF;
 	}
 	
 }
