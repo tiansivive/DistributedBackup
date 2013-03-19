@@ -1,0 +1,18 @@
+{
+	"availableSpaceOnServer":1000,
+	"filesToBackup": [ 
+		{
+			"path":"config.json",
+			"replicationDegree":3
+		},
+		{
+			"path":"\Plerx",
+			"replicationDegree":1
+		},
+		{
+			"path":"C:/Tiago/misc",
+			"replicationDegree":2
+		}
+	],
+	"serverIsActive":true
+}

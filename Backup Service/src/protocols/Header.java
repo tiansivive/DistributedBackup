@@ -6,8 +6,8 @@ import constantValues.Values;
 public class Header{
 	
 	private String messageType;
-	private float version;
-	private int fileID;
+	private String version;
+	private String fileID;
 	private int chunkNumber;
 	private int replicationDegree;
 	
@@ -16,8 +16,8 @@ public class Header{
 	public Header(){
 		
 		this.messageType = null;
-		this.version = -1;
-		this.fileID = -1;
+		this.version = null;
+		this.fileID = null;
 		this.chunkNumber = -1;
 		this.replicationDegree = -1;
 		this.setCRLF(null);
@@ -28,13 +28,13 @@ public class Header{
 		String[] args = info.split(" ");
 		
 		this.messageType = args[0];
-		this.version = Integer.parseInt(args[1]);
-		this.fileID = Integer.parseInt(args[2]);
+		this.version = args[1];
+		this.fileID = args[2];
 		this.chunkNumber = Integer.parseInt(args[3]);
 		this.replicationDegree = Integer.parseInt(args[4]);
 	}
 	
-	public Header(String type, float v, int id, int chunkNo, int replicaDegree){
+	public Header(String type, String v, String id, int chunkNo, int replicaDegree){
 		
 		this.messageType = type;
 		this.version = v;
@@ -50,16 +50,16 @@ public class Header{
 	public void setMessageType(String messageType){
 		this.messageType = messageType;
 	}
-	public float getVersion(){
+	public String getVersion(){
 		return version;
 	}
-	public void setVersion(float version){
+	public void setVersion(String version){
 		this.version = version;
 	}
-	public int getFileID(){
+	public String getFileID(){
 		return fileID;
 	}	
-	public void setFileID(int fileID){
+	public void setFileID(String fileID){
 		this.fileID = fileID;
 	}
 	public int getChunkNumber(){

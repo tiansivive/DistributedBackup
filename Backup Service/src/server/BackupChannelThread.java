@@ -27,6 +27,19 @@ public class BackupChannelThread extends ChannelThread {
 	@Override
     public void run(){
         
+		
+		byte[] buffer = new byte[64000];
+		DatagramPacket datagram = new DatagramPacket(buffer, buffer.length);
+		while(true){
+			System.out.println("Waiting for message");
+			//System.out.println(multicast_backup_socket.);
+			try{
+				multicast_backup_socket.receive(datagram);
+			}catch(IOException e){
+				// TODO Auto-generated catch block
+				e.printStackTrace();
+			}
+		}
     }
 	
 	/**
@@ -38,6 +51,7 @@ public class BackupChannelThread extends ChannelThread {
 		
 		multicast_backup_socket = new MulticastSocket(Values.multicast_backup_group_port);
 		multicast_backup_socket.joinGroup(Values.multicast_backup_group_address);
+		multicast_backup_socket.setTimeToLive(1);
 	}
 	
 	public static MulticastSocket getMulticast_backup_socket() {

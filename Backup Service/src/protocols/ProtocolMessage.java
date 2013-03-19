@@ -15,7 +15,7 @@ public class ProtocolMessage{
 		String[] args = head.split(" ");
 		
 		this.header = new Header(args[0],
-				Integer.parseInt(args[1]), Integer.parseInt(args[2]), Integer.parseInt(args[3]), Integer.parseInt(args[4]));
+				args[1], args[2], Integer.parseInt(args[3]), Integer.parseInt(args[4]));
 		
 		this.body = null;
 	}
@@ -25,7 +25,7 @@ public class ProtocolMessage{
 		String[] args = head.split(" ");
 		
 		this.header = new Header(args[0],
-				Integer.parseInt(args[1]), Integer.parseInt(args[2]), Integer.parseInt(args[3]), Integer.parseInt(args[4]));
+				args[1], args[2], Integer.parseInt(args[3]), Integer.parseInt(args[4]));
 		
 		this.body = new Body(data);
 	}
