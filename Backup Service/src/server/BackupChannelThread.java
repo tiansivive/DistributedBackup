@@ -1,5 +1,6 @@
 package server;
 
+import java.io.File;
 import java.io.IOException;
 import java.net.DatagramPacket;
 import java.net.MulticastSocket;
@@ -10,38 +11,71 @@ import constantValues.Values;
 
 public class BackupChannelThread extends ChannelThread {
 	
-    private static final String DIR_TO_BACKUP_CHUNKS = "backups";
-    private ExecutorService messagePool;
-    
 	/**The multicast socket this thread works on
 	 * 
 	 *  There is only one socket per type of channelThread, i.e the subclasses of ChannelThread;
 	 *  That is why it wasn't extracted to the superclass and also why it has to be static.
 	 *  */
 	private static MulticastSocket multicast_backup_socket;
+    private ExecutorService incomingRequestsPool;
+    private final File backupDirectory;
 
 	public BackupChannelThread() {
-	    messagePool = Executors.newFixedThreadPool(20);   
+	    incomingRequestsPool = Executors.newFixedThreadPool(30);
+	    backupDirectory = new File(Values.directory_to_backup_files);
+	    if(!backupDirectory.mkdir() && !backupDirectory.exists()) {
+	        System.out.println("Error creating directory to backup chunks. You may not have write permission");
+	        System.exit(-1);
+	    }
 	}
 	
 	@Override
     public void run(){
-        
-		
 		byte[] buffer = new byte[65000];
 		DatagramPacket datagram = new DatagramPacket(buffer, buffer.length);
 		while(true){
-			System.out.println("Waiting for message");
-			//System.out.println(multicast_backup_socket.);
 			try{
-				multicast_backup_socket.receive(datagram);
-								
-				System.out.println("Received " + datagram.getLength() + " bytes...");
+			    multicast_backup_socket.receive(datagram);
+			    byte[] temp = new byte[datagram.getLength()];
+			    System.arraycopy(datagram.getData(), 0, temp, 0, datagram.getLength());
+                incomingRequestsPool.execute(new RequestWorker(temp));
 			}catch(IOException e){
 				// TODO Auto-generated catch block
 				e.printStackTrace();
 			} 
 		}
+    }
+	
+	private void processRequest(String request) {
+	    //System.out.println(request);
+	    int endOfHeaderIndex;
+	    if((endOfHeaderIndex = request.indexOf("\r\n")) != -1) { // find the end of the header
+	        //System.out.println("{: "+request.indexOf("{"));
+	        System.out.println("\\n: "+request.indexOf("\n"));
+	        System.out.println("\\r: "+request.indexOf("\r"));
+	        String requestHeader = request.substring(0, endOfHeaderIndex);
+	        String headerPattern = "^PUTCHUNK 1.0 [a-z0-9]{64} [0-9]{1,6} [0-9]$"; // TODO the replication degree can be 0 ?
+	        if(requestHeader.matches(headerPattern)) {
+	            String[] fields = requestHeader.split(" ");
+	            String data = request.substring(endOfHeaderIndex+4);
+	        } else {
+	            System.out.println("Invalid header. Ignoring request");
+	        }
+	    } else {
+	        System.out.println("No <CRLF><CRLF> detected. Ignoring request");
+	    }
+	    
+	}
+	
+	private class RequestWorker implements Runnable {
+        private final byte[] request;
+        public RequestWorker(byte[] request) {
+            this.request = request;
+        }
+        @Override
+        public void run() {
+            processRequest(new String(request));
+        }
     }
 	
 	/**

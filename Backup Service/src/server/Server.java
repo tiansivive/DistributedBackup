@@ -23,7 +23,6 @@ public class Server{
 	public class Config {
 		public int availableSpaceOnServer;
 		public ArrayList<FileToBackup> filesToBackup;
-		public boolean serverIsActive;
 	}
 
 	public void mainLoop() {
@@ -91,13 +90,13 @@ public class Server{
 					+ "\nFile identifier: " + fileIdentifier
 					+ "\nReplication degree: " + replicationDegree);
 			
-			while ((chunkSize = fileInputStream.read(dataBytes)) != -1){//read from file into dataBytes
+			while ((chunkSize = fileInputStream.read(dataBytes)) != -1){ //read from file into dataBytes
 				
-				if(chunkSize < 64000){
-					
-					dataBytes = new byte[chunkSize];
-					fileInputStream.read(dataBytes);
-				}
+			    if(chunkSize < 64000) {
+			        byte[] temp = new byte[chunkSize];
+			        System.arraycopy(dataBytes, 0, temp, 0, chunkSize);
+			        dataBytes = temp;
+			    }
 				
 				System.out.println("\nSENDING CHUNK NUMBER: " + chunkNum);
 				System.out.println("Chunk size: " + chunkSize);
