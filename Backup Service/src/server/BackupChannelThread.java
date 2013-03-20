@@ -5,7 +5,6 @@ import java.io.File;
 import java.io.FileOutputStream;
 import java.io.FileWriter;
 import java.io.IOException;
-import java.io.OutputStreamWriter;
 import java.net.DatagramPacket;
 import java.net.InetAddress;
 import java.net.MulticastSocket;
@@ -79,51 +78,58 @@ public class BackupChannelThread extends ChannelThread {
 	    if((endOfHeaderIndex = request.indexOf("\r\n\r\n")) != -1) { // find the end of the header
 	        String requestHeader = request.substring(0, endOfHeaderIndex);
 	        String headerPattern = "^PUTCHUNK 1.0 [a-z0-9]{64} [0-9]{1,6} [1-9]$";
-	        
+	        System.out.println("\n\n------------------------Received backup request------------------------\n");
+	        String[] fields = requestHeader.split(" ");
+
 	        if(requestHeader.matches(headerPattern)) {
-	            String[] fields = requestHeader.split(" ");
-	            String data = request.substring(endOfHeaderIndex+4);
-	            File directory = new File(Values.directory_to_backup_files+"/"+fields[2]);
-	            File output = new File(Values.directory_to_backup_files+"/"+fields[2]+"/chunk_"+fields[3]);
-	            
-	            try {
-		            if(!directory.mkdir() && !directory.exists()) {
-		                System.out.println("Error creating file directory.");
-		            }
-		            if(!output.createNewFile()) {
-		                System.out.println("Chunk already backed up.");
-		                // TODO we have to send another Stored message??? It's sending for now
-		            }
-		            FileOutputStream fop = new FileOutputStream(output);
-		            fop.write(data.getBytes());
-		            fop.flush();
-		            fop.close();
-		            numberChunksBackedUp++;
-		            
-		            if(backedFiles.containsKey(fields[2])) {
-		                backedFiles.get(fields[2]).add(new Integer(fields[3]));
-		                System.out.println("KEY EXISTED ALREADY!");
-		            } else {
-		                backedFiles.put(fields[2], new ArrayList<Integer>());
-                        backedFiles.get(fields[2]).add(new Integer(fields[3]));
-                        System.out.println("KEY EXISTS!");
-		            }
-	            } catch (IOException e) {
-					e.printStackTrace();
-					// TODO what to do here?
-				}
-	            sendStoredMessage(fields);
+	            if(this.getServer().getControl_thread().getNumberOfBackupsFromChunkNo(Integer.parseInt(fields[3])) < Integer.parseInt(fields[4])) {
+
+	                String data = request.substring(endOfHeaderIndex+4);
+	                File directory = new File(Values.directory_to_backup_files+"/"+fields[2]);
+	                File output = new File(Values.directory_to_backup_files+"/"+fields[2]+"/chunk_"+fields[3]);
+
+	                try {
+	                    if(!directory.mkdir() && !directory.exists()) {
+	                        System.out.println("Error creating file directory.");
+	                    }
+	                    if(!output.createNewFile()) {
+	                        System.out.println("Chunk already backed up.");
+	                        // TODO we have to send another Stored message??? It's sending for now
+	                    }
+	                    FileOutputStream fop = new FileOutputStream(output);
+	                    fop.write(data.getBytes());
+	                    fop.flush();
+	                    fop.close();
+	                    numberChunksBackedUp++;
+
+	                    if(backedFiles.containsKey(fields[2])) {
+	                        backedFiles.get(fields[2]).add(new Integer(fields[3]));
+	                        System.out.println("KEY EXISTED ALREADY!");
+	                    } else {
+	                        backedFiles.put(fields[2], new ArrayList<Integer>());
+	                        backedFiles.get(fields[2]).add(new Integer(fields[3]));
+	                        System.out.println("KEY EXISTS!");
+	                    }
+	                } catch (IOException e) {
+	                    e.printStackTrace();
+	                    // TODO what to do here?
+	                }
+	                sendStoredMessage(fields);
+	            } else {
+	                System.out.println("Invalid header. Ignoring request");
+	            }
 	        } else {
+
 	            System.out.println("Invalid header. Ignoring request");
 	        }
-	    } else {
+
+	    }else{
 	        System.out.println("No <CRLF><CRLF> detected. Ignoring request");
 	    }
 	}
 	
 	public void sendStoredMessage(String[] fields){
-		
-		try {
+		try{
 			String head = new String(Values.stored_chunk_control_message_identifier + " " + fields[1] + " " + fields[2] + " " + fields[3]);
 			byte[] buf = ProtocolMessage.toBytes(head, null);
 			DatagramPacket packet = new DatagramPacket(buf, buf.length, Values.multicast_control_group_address, Values.multicast_control_group_port);
@@ -137,7 +143,8 @@ public class BackupChannelThread extends ChannelThread {
 		}
 	}
 	
-	private class RequestWorker implements Runnable {
+	private class RequestWorker implements Runnable{
+		
         private final byte[] request;
         public RequestWorker(byte[] request) {
             this.request = request;

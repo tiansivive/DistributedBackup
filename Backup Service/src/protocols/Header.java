@@ -33,8 +33,21 @@ public class Header{
 		this.messageType = args[0];
 		this.version = args[1];
 		this.fileID = args[2];
-		this.chunkNumber = Integer.parseInt(args[3]);
-		this.replicationDegree = Integer.parseInt(args[4]);
+		
+		try{
+			this.chunkNumber = Integer.parseInt(args[3]);
+			this.replicationDegree = Integer.parseInt(args[4]);
+			
+		}catch(ArrayIndexOutOfBoundsException e){
+			
+			this.replicationDegree = -1;
+			
+		}catch(NumberFormatException e){
+			
+			String tmp = args[3];
+			tmp = tmp.replaceAll("\\r\\n", ""); //trims the <CRLF><CRLF> from the end of the message
+			this.chunkNumber = Integer.parseInt(tmp);
+		}
 	}
 	
 	public Header(String type, String v, String id, int chunkNo){

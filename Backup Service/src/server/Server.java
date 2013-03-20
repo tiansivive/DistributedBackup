@@ -110,13 +110,16 @@ public class Server{
 				
 				//System.out.println("HEADER: " + head);
 				
+				this.control_thread.updateRequestedBackups(new Header(head));
+				
+				
 				byte[] buf = ProtocolMessage.toBytes(head, dataBytes);
 				
 				DatagramPacket packet = new DatagramPacket(buf, buf.length, Values.multicast_backup_group_address, Values.multicast_backup_group_port);
 				BackupChannelThread.getMulticast_backup_socket().send(packet);
 				
 				System.out.println("\nSent " + packet.getLength() + " bytes");
-				System.out.println("------------Chunk sent------------\n\n");
+				System.out.println("------------------------Chunk sent------------------------\n\n");
 				chunkNum++;
 			}
 			
@@ -129,8 +132,7 @@ public class Server{
 	}
 
 
-
-
+	
 	/**
 	 * Run_threads.
 	 */
@@ -159,6 +161,25 @@ public class Server{
 		BackupChannelThread.init_socket();
 		RestoreChannelThread.init_socket();
 
+	}
+
+	public ControlChannelThread getControl_thread() {
+		return control_thread;
+	}
+	public void setControl_thread(ControlChannelThread control_thread) {
+		this.control_thread = control_thread;
+	}
+	public BackupChannelThread getBackup_thread() {
+		return backup_thread;
+	}
+	public void setBackup_thread(BackupChannelThread backup_thread) {
+		this.backup_thread = backup_thread;
+	}
+	public RestoreChannelThread getRestore_thread() {
+		return restore_thread;
+	}
+	public void setRestore_thread(RestoreChannelThread restore_thread) {
+		this.restore_thread = restore_thread;
 	}
 
 }
