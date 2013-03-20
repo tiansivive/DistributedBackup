@@ -21,8 +21,18 @@ public class ControlChannelThread extends ChannelThread{
 	private static MulticastSocket multicast_control_socket;
 	private ExecutorService requestsPool;
 	
-	private HashMap<String, Map<Integer, ReplicationInfo> > requestedBackups;	
-	private HashMap<Integer, Integer> numberOfBackupsPerChunk; //map<ChunkNo,numOfBackups>
+	/**
+	 * The backup requests this machine sent to others.
+	 * Allows this machine to know if the other ones on the network have stored all chunks as well as an adequate number of replicas
+	 * 
+	 */
+	private HashMap<String, Map<Integer, ReplicationInfo> > requestedBackups;
+	
+	/**
+	 * The number of replicated chunks of a given file from another machine's backup request that have been stored in other machines.
+	 * 
+	 */
+	private HashMap<String,Map<Integer, Integer> > numberOfBackupsPerChunk; //map<ChunkNo,numOfBackups>
 	
 	private class RequestTask implements Runnable {
 		
@@ -75,8 +85,9 @@ public class ControlChannelThread extends ChannelThread{
 	
 	public ControlChannelThread(){
 		
-		this.numberOfBackupsPerChunk = new HashMap<Integer, Integer>();
-		this.requestedBackups = new HashMap<String, Map<Integer, ReplicationInfo>>();
+		this.setName("ControlThread");
+		this.numberOfBackupsPerChunk = new HashMap<String, Map<Integer, Integer> >();
+		this.requestedBackups = new HashMap<String, Map<Integer, ReplicationInfo> >();
 		this.requestsPool = Executors.newCachedThreadPool();	
 	}
 	
@@ -103,8 +114,7 @@ public class ControlChannelThread extends ChannelThread{
 	private void processRequest(String msg){
 
 		
-		System.out.println("\nControl Channel data");
-		System.out.println("Message received: " + msg);
+		System.out.println("\nControl Channel data\nMessage received: " + msg);
 	
 		Header message = new Header(msg);
 		
@@ -113,9 +123,6 @@ public class ControlChannelThread extends ChannelThread{
 			case "STORED":
 			{
 				process_StoredMessage(message);
-				synchronized(this){
-					incrementBackupNumberOfChunk(message.getChunkNumber());
-				}
 				break;
 			}
 			case "GETCHUNK":
@@ -159,10 +166,12 @@ public class ControlChannelThread extends ChannelThread{
 		
 		if(!this.requestedBackups.containsKey(message.getFileID())){
 			
+			incrementBackupNumberOfChunk(message.getFileID(), message.getChunkNumber());
+			
 			System.out.println("Received someone else's STORED message\nDiscarding...");
 			return;
 		}else{
-				
+					
 			getChunkReplicationInfo(message.getChunkNumber(), message.getFileID()).incrementCurrentReplication();
 		}
 
@@ -204,17 +213,25 @@ public class ControlChannelThread extends ChannelThread{
 		multicast_control_socket.joinGroup(Values.multicast_control_group_address);
 	}
 	
-	public void incrementBackupNumberOfChunk(int chunkNo){
+	public synchronized void incrementBackupNumberOfChunk(String file, int chunkNo){
 		
 		int currentNumber = 0;
+		@SuppressWarnings("unused")
+		Map<Integer, Integer> tmp = null;
+		
+		try{//Checks if the file is already in the Map as a key
+			tmp = this.numberOfBackupsPerChunk.get(file);
+		}catch(NullPointerException e){
+			this.numberOfBackupsPerChunk.put(file, null);//If not puts it there
+		}
 		
 		try{
-			currentNumber = this.numberOfBackupsPerChunk.get(chunkNo);
-		}catch(NullPointerException e){
-		
-		}finally{	
-			currentNumber++;
-			this.numberOfBackupsPerChunk.put(chunkNo, currentNumber);
+			currentNumber = this.numberOfBackupsPerChunk.get(file).get(chunkNo);//Checks if there already is a key chunkNo for the indicated file		
+		}catch(NullPointerException e){				
+			currentNumber = 0;	//If not, then the number of Replicas is 0
+		}finally{
+			currentNumber++; //Updates value of replicas
+			this.numberOfBackupsPerChunk.get(file).put(chunkNo, currentNumber);//updates the number of replicas of said chunk
 		}
 	}
 	
@@ -233,19 +250,18 @@ public class ControlChannelThread extends ChannelThread{
 		ControlChannelThread.multicast_control_socket = multicast_control_socket;
 	}
 	
-	public synchronized int getNumberOfBackupsFromChunkNo(int chunkNum){
+	public synchronized int getNumberOfBackupsFromChunkNo(String file, int chunkNum){
 		try{
-			return this.numberOfBackupsPerChunk.get(chunkNum);
-		}catch(NullPointerException e){
-			
+			return this.numberOfBackupsPerChunk.get(file).get(chunkNum);
+		}catch(NullPointerException e){	
 			return -1;
 		}
 	}
-	public synchronized HashMap<Integer, Integer> getNumberOfBackupsPerChunk(){
+	public synchronized HashMap<String, Map<Integer, Integer> > getNumberOfBackupsPerChunk(){
 		return numberOfBackupsPerChunk;
 	}
 	public synchronized void setNumberOfBackupsPerChunk(
-			HashMap<Integer, Integer> numberOfBackupsPerChunk) {
+			HashMap<String, Map<Integer, Integer> > numberOfBackupsPerChunk) {
 		this.numberOfBackupsPerChunk = numberOfBackupsPerChunk;
 	}
 	public synchronized Map<Integer, ReplicationInfo> getChunksFromFile(String file){

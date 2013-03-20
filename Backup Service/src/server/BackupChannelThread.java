@@ -37,6 +37,8 @@ public class BackupChannelThread extends ChannelThread {
     private static long numberChunksBackedUp;
        
 	private BackupChannelThread() {
+		
+		this.setName("BackupChannelThread");
 	    incomingRequestsPool = Executors.newCachedThreadPool();
 	    backupDirectory = new File(Values.directory_to_backup_files);
 	    if(!backupDirectory.mkdir() && !backupDirectory.exists()) {
@@ -82,7 +84,8 @@ public class BackupChannelThread extends ChannelThread {
 	        String[] fields = requestHeader.split(" ");
 
 	        if(requestHeader.matches(headerPattern)) {
-	            if(this.getServer().getControl_thread().getNumberOfBackupsFromChunkNo(Integer.parseInt(fields[3])) < Integer.parseInt(fields[4])) {
+	        	 if(this.getServer().getControl_thread().getNumberOfBackupsFromChunkNo(fields[2], Integer.parseInt(fields[3])) 
+		            		< Integer.parseInt(fields[4])){ //checks if this chunk has already been stored the number of desired times
 
 	                String data = request.substring(endOfHeaderIndex+4);
 	                File directory = new File(Values.directory_to_backup_files+"/"+fields[2]);
@@ -116,9 +119,9 @@ public class BackupChannelThread extends ChannelThread {
 	                }
 	                sendStoredMessage(fields);
 	            } else {
-	                System.out.println("Invalid header. Ignoring request");
+	            	System.out.println("Chunk has already been stored enough times");
 	            }
-	        } else {
+	         } else {
 
 	            System.out.println("Invalid header. Ignoring request");
 	        }
@@ -138,6 +141,8 @@ public class BackupChannelThread extends ChannelThread {
 			int delay = rand.nextInt(401);
 			Thread.sleep(delay);
 			ControlChannelThread.getMulticast_control_socket().send(packet);
+			System.out.println("Sent STORED message");
+			
 		} catch (IOException | InterruptedException e) {
 			e.printStackTrace();
 		}

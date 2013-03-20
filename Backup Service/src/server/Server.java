@@ -138,6 +138,7 @@ public class Server{
 	 */
 	public void run_threads(){
 
+		Thread.currentThread().setName("MainThread");
 		control_thread = new ControlChannelThread(); // TODO change to singleton pattern
 		backup_thread = BackupChannelThread.getInstance();
 		restore_thread = new RestoreChannelThread(); // TODO change to singleton pattern
