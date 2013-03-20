@@ -2,8 +2,11 @@ package server;
 
 import java.io.IOException;
 import java.net.*;
+import java.util.*;
+import java.util.concurrent.*;
+
+
 import protocols.Header;
-import protocols.ProtocolMessage;
 import constantValues.Values;
 
 
@@ -16,34 +19,93 @@ public class ControlChannelThread extends ChannelThread{
 	 *  That is why it wasn't extracted to the superclass and also why it has to be static.
 	 *  */
 	private static MulticastSocket multicast_control_socket;
-	public int cont = 0;
+	private ExecutorService requestsPool;
+	
+	private HashMap<String, Map<Integer, ReplicationInfo> > requestedBackups;	
+	
+	
+	private class RequestTask implements Runnable {
+		
+		private String request;
+        public RequestTask(String request) {
+            this.request = request;
+        }
+        
+        @Override
+        public void run() {
+            processRequest(request);
+        }
+    }
+	private class ReplicationInfo{
+		
+		private int desiredReplication;
+		private int currentReplication;
+		
+		@SuppressWarnings("unused")
+		public ReplicationInfo(){
+		}
+		public ReplicationInfo(int desired, int current){
+			this.desiredReplication = desired;
+			this.currentReplication = current;
+		}
+
+		
+		public void incrementCurrentReplication(){
+			this.currentReplication++;
+		}
+
+		@SuppressWarnings("unused")
+		public int getDesiredReplication() {
+			return desiredReplication;
+		}
+		@SuppressWarnings("unused")
+		public void setDesiredReplication(int desiredReplication) {
+			this.desiredReplication = desiredReplication;
+		}
+		@SuppressWarnings("unused")
+		public int getCurrentReplication() {
+			return currentReplication;
+		}
+		@SuppressWarnings("unused")
+		public void setCurrentReplication(int currentReplication) {
+			this.currentReplication = currentReplication;
+		}
+		
+	}
+
+	
+	
+	public ControlChannelThread(){
+		
+		requestedBackups = new HashMap<String, Map<Integer, ReplicationInfo>>();
+		this.requestsPool = Executors.newCachedThreadPool();	
+	}
+	
 	
 	@Override
 	public void run(){
 		
 		byte[] buffer = new byte[256];
 		DatagramPacket datagram = new DatagramPacket(buffer, buffer.length);
+		
 		while(true){
-			
 			try{
 				multicast_control_socket.receive(datagram);
-				cont++;
-				System.out.println("Cont = " + cont);
-				System.out.println(new String(datagram.getData()));
+				String msg = new String(datagram.getData()).substring(0, datagram.getLength());
+				
+				this.requestsPool.execute(new RequestTask(msg));
+				
 			}catch(IOException e){
 				// TODO Auto-generated catch block
 				e.printStackTrace();
 			}
-			
-			//processRequest(datagram.getData().toString()); //it's okay to convert to string because on the control channel there is no chunk data 
-
-		}
-		
+		}	
 	}
 
 	private void processRequest(String msg){
+
 		
-		System.out.println("\nControl Channel data:\n");
+		System.out.println("\nControl Channel data");
 		System.out.println("Message received: " + msg);
 	
 		Header message = new Header(msg);
@@ -78,32 +140,58 @@ public class ControlChannelThread extends ChannelThread{
 				break;
 			}
 		}
-		
-		
 	}
 
 	private void process_RemovedMessage(Header message){
 		// TODO Auto-generated method stub
 		
 	}
-
 	private void process_DeleteMessage(Header message){
 		// TODO Auto-generated method stub
 		
 	}
-
 	private void process_GetChunkMessage(Header message){
 		// TODO Auto-generated method stub
 		
 	}
-
 	private void process_StoredMessage(Header message){
-		// TODO Auto-generated method stub
+		
+		if(!this.requestedBackups.containsKey(message.getFileID())){
+			
+			System.out.println("Received someone else's STORED message\nDiscarding...");
+			return;
+		}else{
+				
+			getChunkReplicationInfo(message.getChunkNumber(), message.getFileID()).incrementCurrentReplication();
+		}
+
+	}
+	
+	public synchronized void updateRequestedBackups(Header info){
+		
+		ReplicationInfo status = new ReplicationInfo(info.getReplicationDegree(), 0);
+		Map<Integer, ReplicationInfo> chunkInfo = new HashMap<Integer, ReplicationInfo>();
+		chunkInfo.put(info.getChunkNumber(), status);
+		
+		if(!this.requestedBackups.containsKey(info.getFileID())){
+			
+			this.requestedBackups.put(info.getFileID(), chunkInfo);					
+		}else{
+			
+			if(!this.getChunksFromFile(info.getFileID()).containsKey(info.getChunkNumber())){
+				
+				this.getChunksFromFile(info.getFileID()).put(info.getChunkNumber(), status);
+			}else{
+				//TODO se já tiver sido feito o pedido de backup deste chunk, acontece o quê?
+				
+				//this.requestedBackups.get(info.getFileID()).get(info.getChunkNumber()).setDesiredReplication(info.getReplicationDegree());
+			}
+		}
 		
 	}
 	
 	
-
+	
 	/**
 	 * Init_socket.
 	 *
@@ -114,7 +202,6 @@ public class ControlChannelThread extends ChannelThread{
 		multicast_control_socket = new MulticastSocket(Values.multicast_control_group_port);
 		multicast_control_socket.joinGroup(Values.multicast_control_group_address);
 	}
-	
 	public static MulticastSocket getMulticast_control_socket(){
 		return multicast_control_socket;
 	}
@@ -123,4 +210,32 @@ public class ControlChannelThread extends ChannelThread{
 		ControlChannelThread.multicast_control_socket = multicast_control_socket;
 	}
 	
+	public ExecutorService getRequestsPool() {
+		return requestsPool;
+	}
+	public void setRequestsPool(ExecutorService requestsPool) {
+		this.requestsPool = requestsPool;
+	}
+
+	public synchronized Map<Integer, ReplicationInfo> getChunksFromFile(String file){
+		
+		return this.requestedBackups.get(file);
+	}
+	public synchronized ReplicationInfo getChunkReplicationInfo(int chunk, String file){	
+		return this.requestedBackups.get(file).get(chunk);
+	}
+	public synchronized int getChunkDesiredReplication(int chunk, String file){		
+		return this.requestedBackups.get(file).get(chunk).getDesiredReplication();	
+	}
+	public synchronized int getChunkCurrentReplicationStatus(int chunk, String file){		
+		return this.requestedBackups.get(file).get(chunk).getCurrentReplication();	
+	}
+	
+	public synchronized HashMap<String, Map<Integer, ReplicationInfo>> getRequestedBackups() {
+		return requestedBackups;
+	}
+	public synchronized void setRequestedBackups(HashMap<String, Map<Integer, ReplicationInfo>> RequestedBackups) {
+		this.requestedBackups = RequestedBackups;
+	}
+
 }

@@ -3,7 +3,6 @@ package server;
 import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
-import java.io.OutputStreamWriter;
 import java.net.DatagramPacket;
 import java.net.MulticastSocket;
 import java.util.concurrent.ExecutorService;
@@ -62,42 +61,52 @@ public class BackupChannelThread extends ChannelThread {
 	        String headerPattern = "^PUTCHUNK 1.0 [a-z0-9]{64} [0-9]{1,6} [0-9]$"; // TODO the replication degree can be 0 ?
 	        
 	        if(requestHeader.matches(headerPattern)) {
+	        	
+	        	System.out.println("\n\n------------------------Received backup request------------------------\n");
 	            String[] fields = requestHeader.split(" ");
-	            String data = request.substring(endOfHeaderIndex+4);
 	            
-	            File output = new File("backup_" + fields[3] + ".txt");
-	            
-	            try {
-		            if(!output.exists()){
-		            	
-		            	output.createNewFile();
-		            }
+	            if(this.getServer().getControl_thread().getChunkCurrentReplicationStatus(Integer.parseInt(fields[3]), fields[2]) 
+	            		< this.getServer().getControl_thread().getChunkDesiredReplication(Integer.parseInt(fields[3]), fields[2])){ //checks if this chunk has already been stored the number of desired times
+	            	
+		          
+		            String data = request.substring(endOfHeaderIndex+4);
 		            
-		            FileOutputStream fop = new FileOutputStream(output);
-		            fop.write(data.getBytes());
-		            fop.flush();
-		            fop.close();
+		            File output = new File("backup_" + fields[3] + ".txt");
 		            
-	            } catch (IOException e) {
-					// TODO Auto-generated catch block
-					e.printStackTrace();
-				}
-	            
-	            sendStoredMessage(fields);
-	        } else {
+		            try{
+			            if(!output.exists()){
+			            	
+			            	output.createNewFile();
+			            }
+			            
+			            FileOutputStream fop = new FileOutputStream(output);
+			            fop.write(data.getBytes());
+			            fop.flush();
+			            fop.close();
+			            
+			            System.out.println("Stored chunk number: " + fields[3]);
+		            }catch (IOException e){
+						// TODO Auto-generated catch block
+						e.printStackTrace();
+		            }           
+		            sendStoredMessage(fields);
+		      
+	            }else{
+	            	System.out.println("Chunk has already been stored enough times");
+	            }
+	        }else{
 	            System.out.println("Invalid header. Ignoring request");
 	        }
 	        
-	    } else {
+	    }else{
 	        System.out.println("No <CRLF><CRLF> detected. Ignoring request");
 	    }
 	    
 	}
 	
 	public void sendStoredMessage(String[] fields){
-		
-		try {
-			
+				
+		try{
 			String head = new String(Values.stored_chunk_control_message_identifier + " " + fields[1] + " " + fields[2] + " " + fields[3]);
 			
 			byte[] buf = ProtocolMessage.toBytes(head, null);
@@ -105,7 +114,9 @@ public class BackupChannelThread extends ChannelThread {
 			DatagramPacket packet = new DatagramPacket(buf, buf.length, Values.multicast_control_group_address, Values.multicast_control_group_port);
 			ControlChannelThread.getMulticast_control_socket().send(packet);
 			
-		} catch (IOException e) {
+			System.out.println("Sent STORED message");
+			
+		}catch (IOException e){
 			// TODO Auto-generated catch block
 			e.printStackTrace();
 		}
@@ -113,7 +124,8 @@ public class BackupChannelThread extends ChannelThread {
 		
 	}
 	
-	private class RequestWorker implements Runnable {
+	private class RequestWorker implements Runnable{
+		
         private final byte[] request;
         public RequestWorker(byte[] request) {
             this.request = request;
