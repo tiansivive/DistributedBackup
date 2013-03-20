@@ -108,11 +108,7 @@ public class Server{
 									+ chunkNum + " "
 									+ replicationDegree;
 				
-				//System.out.println("HEADER: " + head);
-				
 				this.control_thread.updateRequestedBackups(new Header(head));
-				
-				
 				byte[] buf = ProtocolMessage.toBytes(head, dataBytes);
 				
 				DatagramPacket packet = new DatagramPacket(buf, buf.length, Values.multicast_backup_group_address, Values.multicast_backup_group_port);
@@ -130,8 +126,6 @@ public class Server{
 			//System.exit(-1);
 		}
 	}
-
-
 	
 	/**
 	 * Run_threads.

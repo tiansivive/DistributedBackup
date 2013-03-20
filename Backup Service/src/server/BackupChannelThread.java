@@ -84,8 +84,8 @@ public class BackupChannelThread extends ChannelThread {
 	        String[] fields = requestHeader.split(" ");
 
 	        if(requestHeader.matches(headerPattern)) {
-	        	 if(this.getServer().getControl_thread().getNumberOfBackupsFromChunkNo(fields[2], Integer.parseInt(fields[3])) 
-		            		< Integer.parseInt(fields[4])){ //checks if this chunk has already been stored the number of desired times
+	            if(this.getServer().getControl_thread().getNumberOfBackupsFromChunkNo(fields[2], Integer.parseInt(fields[3])) 
+	                    < Integer.parseInt(fields[4])){ //checks if this chunk has already been stored the number of desired times
 
 	                String data = request.substring(endOfHeaderIndex+4);
 	                File directory = new File(Values.directory_to_backup_files+"/"+fields[2]);
@@ -119,9 +119,9 @@ public class BackupChannelThread extends ChannelThread {
 	                }
 	                sendStoredMessage(fields);
 	            } else {
-	            	System.out.println("Chunk has already been stored enough times");
+	                System.out.println("Chunk has already been stored enough times");
 	            }
-	         } else {
+	        } else {
 
 	            System.out.println("Invalid header. Ignoring request");
 	        }
