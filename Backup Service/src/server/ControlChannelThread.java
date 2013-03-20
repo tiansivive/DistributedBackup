@@ -16,23 +16,26 @@ public class ControlChannelThread extends ChannelThread{
 	 *  That is why it wasn't extracted to the superclass and also why it has to be static.
 	 *  */
 	private static MulticastSocket multicast_control_socket;
-	
+	public int cont = 0;
 	
 	@Override
 	public void run(){
 		
-		byte[] buffer = new byte[32];
+		byte[] buffer = new byte[256];
 		DatagramPacket datagram = new DatagramPacket(buffer, buffer.length);
 		while(true){
 			
 			try{
 				multicast_control_socket.receive(datagram);
+				cont++;
+				System.out.println("Cont = " + cont);
+				System.out.println(new String(datagram.getData()));
 			}catch(IOException e){
 				// TODO Auto-generated catch block
 				e.printStackTrace();
 			}
 			
-			processRequest(datagram.getData().toString()); //it's okay to convert to string because on the control channel there is no chunk data 
+			//processRequest(datagram.getData().toString()); //it's okay to convert to string because on the control channel there is no chunk data 
 
 		}
 		

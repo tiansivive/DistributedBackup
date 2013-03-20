@@ -37,6 +37,14 @@ public class Header{
 		this.replicationDegree = Integer.parseInt(args[4]);
 	}
 	
+	public Header(String type, String v, String id, int chunkNo){
+		
+		this.messageType = type;
+		this.version = v;
+		this.fileID = id;
+		this.chunkNumber = chunkNo;
+	}
+	
 	public Header(String type, String v, String id, int chunkNo, int replicaDegree){
 		
 		this.messageType = type;

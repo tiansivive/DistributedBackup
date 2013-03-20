@@ -2,7 +2,7 @@
 	"availableSpaceOnServer":1000,
 	"filesToBackup": [ 
 		{
-			"path":"config.json",
+			"path":"config.jsond",
 			"replicationDegree":3
 		},
 		{
@@ -10,7 +10,7 @@
 			"replicationDegree":1
 		},
 		{
-			"path":"C:/Users/ei09144/Downloads/ESOF.eap",
+			"path":"Z:/FEUP/cal/teste.txt",
 			"replicationDegree":2
 		}
 	],
