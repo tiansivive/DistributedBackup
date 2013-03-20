@@ -88,7 +88,8 @@ public class Server{
 					+ "\nSize: " + file.length() 
 					+ "\nProtocol version: " + Values.protocol_version
 					+ "\nFile identifier: " + fileIdentifier
-					+ "\nReplication degree: " + replicationDegree);
+					+ "\nReplication degree: " + replicationDegree
+					+ "\nChunks: " + (int)Math.ceil(file.length()/64000.0));
 			
 			while ((chunkSize = fileInputStream.read(dataBytes)) != -1){ //read from file into dataBytes
 				
@@ -107,7 +108,7 @@ public class Server{
 									+ chunkNum + " "
 									+ replicationDegree;
 				
-				System.out.println("HEADER: " + head);
+				//System.out.println("HEADER: " + head);
 				
 				byte[] buf = ProtocolMessage.toBytes(head, dataBytes);
 				
@@ -123,11 +124,8 @@ public class Server{
 
 		} catch (IOException e) {
 			e.printStackTrace();
-			System.exit(-1);
+			//System.exit(-1);
 		}
-
-
-
 	}
 
 
@@ -138,9 +136,9 @@ public class Server{
 	 */
 	public void run_threads(){
 
-		control_thread = new ControlChannelThread();
-		backup_thread = new BackupChannelThread();
-		restore_thread = new RestoreChannelThread();
+		control_thread = new ControlChannelThread(); // TODO change to singleton pattern
+		backup_thread = BackupChannelThread.getInstance();
+		restore_thread = new RestoreChannelThread(); // TODO change to singleton pattern
 
 		control_thread.setServer(this);
 		control_thread.start();

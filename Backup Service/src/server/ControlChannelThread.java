@@ -28,8 +28,8 @@ public class ControlChannelThread extends ChannelThread{
 			try{
 				multicast_control_socket.receive(datagram);
 				cont++;
-				System.out.println("Cont = " + cont);
-				System.out.println(new String(datagram.getData()));
+				//System.out.println("Cont = " + cont);
+				//System.out.println(new String(datagram.getData()));
 			}catch(IOException e){
 				// TODO Auto-generated catch block
 				e.printStackTrace();

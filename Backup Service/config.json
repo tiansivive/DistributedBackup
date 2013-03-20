@@ -2,7 +2,7 @@
 	"availableSpaceOnServer":1000,
 	"filesToBackup": [ 
 		{
-			"path":"config.jsond",
+			"path":"config.json",
 			"replicationDegree":3
 		},
 		{
@@ -10,9 +10,17 @@
 			"replicationDegree":1
 		},
 		{
-			"path":"Z:/FEUP/cal/teste.txt",
+			"path":"/Users/migueloliveira/Dropbox/Stuff/bussiness_cards",
+			"replicationDegree":2
+		},
+		{
+			"path":"C:/Users/ei09144/Downloads/ESOF.eap",
 			"replicationDegree":2
 		}
-	],
-	"serverIsActive":true
+		,
+		{
+			"path":"/Useddrs/migueloliveira/Dropbox/Stuff",
+			"replicationDegree":2
+		}
+	]
 }

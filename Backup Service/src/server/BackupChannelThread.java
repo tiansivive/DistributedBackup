@@ -1,15 +1,24 @@
 package server;
 
+import java.io.BufferedWriter;
 import java.io.File;
 import java.io.FileOutputStream;
+import java.io.FileWriter;
 import java.io.IOException;
 import java.io.OutputStreamWriter;
 import java.net.DatagramPacket;
+import java.net.InetAddress;
 import java.net.MulticastSocket;
+import java.util.ArrayList;
+import java.util.Hashtable;
+import java.util.Random;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
+import com.google.gson.Gson;
+
 import protocols.ProtocolMessage;
+import server.Server.Config;
 
 import constantValues.Values;
 
@@ -21,16 +30,30 @@ public class BackupChannelThread extends ChannelThread {
 	 *  That is why it wasn't extracted to the superclass and also why it has to be static.
 	 *  */
 	private static MulticastSocket multicast_backup_socket;
-    private ExecutorService incomingRequestsPool;
-    private final File backupDirectory;
+    private static ExecutorService incomingRequestsPool;
+    private static File backupDirectory;
+    private static Random rand;
+    private static Hashtable<String,ArrayList<Integer>> backedFiles;
+    private static BackupChannelThread instance;
+    private static long numberChunksBackedUp;
        
-	public BackupChannelThread() {
+	private BackupChannelThread() {
 	    incomingRequestsPool = Executors.newCachedThreadPool();
 	    backupDirectory = new File(Values.directory_to_backup_files);
 	    if(!backupDirectory.mkdir() && !backupDirectory.exists()) {
-	        System.out.println("Error creating directory to backup chunks. You may not have write permission");
+	        System.out.println("Error creating backups directory. You may not have write permission");
 	        System.exit(-1);
 	    }
+	    rand = new Random();
+	    backedFiles = new Hashtable<String,ArrayList<Integer>>();
+	    numberChunksBackedUp = 0;
+	}
+	
+	public static BackupChannelThread getInstance() {
+	    if(instance == null) {
+	        instance = new BackupChannelThread();
+	    }
+	    return instance;
 	}
 	
 	@Override
@@ -40,14 +63,11 @@ public class BackupChannelThread extends ChannelThread {
 		while(true){
 			try{
 			    multicast_backup_socket.receive(datagram);
-			    final byte[] temp = new byte[datagram.getLength()];
+			    System.out.println("ADDRESS: "+datagram.getAddress());
+			    byte[] temp = new byte[datagram.getLength()];
 			    System.arraycopy(datagram.getData(), 0, temp, 0, datagram.getLength());
-				
-			    
                 incomingRequestsPool.execute(new RequestWorker(temp));
-   
 			}catch(IOException e){
-				// TODO Auto-generated catch block
 				e.printStackTrace();
 			} 
 		}
@@ -56,61 +76,65 @@ public class BackupChannelThread extends ChannelThread {
 	private void processRequest(String request) {
 
 	    int endOfHeaderIndex;
-	    if((endOfHeaderIndex = request.indexOf("\r\n")) != -1) { // find the end of the header
-
+	    if((endOfHeaderIndex = request.indexOf("\r\n\r\n")) != -1) { // find the end of the header
 	        String requestHeader = request.substring(0, endOfHeaderIndex);
-	        String headerPattern = "^PUTCHUNK 1.0 [a-z0-9]{64} [0-9]{1,6} [0-9]$"; // TODO the replication degree can be 0 ?
+	        String headerPattern = "^PUTCHUNK 1.0 [a-z0-9]{64} [0-9]{1,6} [1-9]$";
 	        
 	        if(requestHeader.matches(headerPattern)) {
 	            String[] fields = requestHeader.split(" ");
 	            String data = request.substring(endOfHeaderIndex+4);
-	            
-	            File output = new File("backup_" + fields[3] + ".txt");
+	            File directory = new File(Values.directory_to_backup_files+"/"+fields[2]);
+	            File output = new File(Values.directory_to_backup_files+"/"+fields[2]+"/chunk_"+fields[3]);
 	            
 	            try {
-		            if(!output.exists()){
-		            	
-		            	output.createNewFile();
+		            if(!directory.mkdir() && !directory.exists()) {
+		                System.out.println("Error creating file directory.");
 		            }
-		            
+		            if(!output.createNewFile()) {
+		                System.out.println("Chunk already backed up.");
+		                // TODO we have to send another Stored message??? It's sending for now
+		            }
 		            FileOutputStream fop = new FileOutputStream(output);
 		            fop.write(data.getBytes());
 		            fop.flush();
 		            fop.close();
+		            numberChunksBackedUp++;
 		            
+		            if(backedFiles.containsKey(fields[2])) {
+		                backedFiles.get(fields[2]).add(new Integer(fields[3]));
+		                System.out.println("KEY EXISTED ALREADY!");
+		            } else {
+		                backedFiles.put(fields[2], new ArrayList<Integer>());
+                        backedFiles.get(fields[2]).add(new Integer(fields[3]));
+                        System.out.println("KEY EXISTS!");
+		            }
 	            } catch (IOException e) {
-					// TODO Auto-generated catch block
 					e.printStackTrace();
+					// TODO what to do here?
 				}
-	            
 	            sendStoredMessage(fields);
 	        } else {
 	            System.out.println("Invalid header. Ignoring request");
 	        }
-	        
 	    } else {
 	        System.out.println("No <CRLF><CRLF> detected. Ignoring request");
 	    }
-	    
 	}
 	
 	public void sendStoredMessage(String[] fields){
 		
 		try {
-			
 			String head = new String(Values.stored_chunk_control_message_identifier + " " + fields[1] + " " + fields[2] + " " + fields[3]);
-			
 			byte[] buf = ProtocolMessage.toBytes(head, null);
-			
 			DatagramPacket packet = new DatagramPacket(buf, buf.length, Values.multicast_control_group_address, Values.multicast_control_group_port);
+
+			// waiting between 0 and 400 miliseconds before sending response
+			int delay = rand.nextInt(401);
+			Thread.sleep(delay);
 			ControlChannelThread.getMulticast_control_socket().send(packet);
-			
-		} catch (IOException e) {
-			// TODO Auto-generated catch block
+		} catch (IOException | InterruptedException e) {
 			e.printStackTrace();
 		}
-		
-		
 	}
 	
 	private class RequestWorker implements Runnable {
