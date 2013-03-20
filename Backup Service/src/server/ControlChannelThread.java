@@ -22,7 +22,7 @@ public class ControlChannelThread extends ChannelThread{
 	private ExecutorService requestsPool;
 	
 	private HashMap<String, Map<Integer, ReplicationInfo> > requestedBackups;	
-	
+	private HashMap<Integer, Integer> numberOfBackupsPerChunk; //map<ChunkNo,numOfBackups>
 	
 	private class RequestTask implements Runnable {
 		
@@ -54,7 +54,6 @@ public class ControlChannelThread extends ChannelThread{
 			this.currentReplication++;
 		}
 
-		@SuppressWarnings("unused")
 		public int getDesiredReplication() {
 			return desiredReplication;
 		}
@@ -62,7 +61,6 @@ public class ControlChannelThread extends ChannelThread{
 		public void setDesiredReplication(int desiredReplication) {
 			this.desiredReplication = desiredReplication;
 		}
-		@SuppressWarnings("unused")
 		public int getCurrentReplication() {
 			return currentReplication;
 		}
@@ -77,7 +75,8 @@ public class ControlChannelThread extends ChannelThread{
 	
 	public ControlChannelThread(){
 		
-		requestedBackups = new HashMap<String, Map<Integer, ReplicationInfo>>();
+		this.numberOfBackupsPerChunk = new HashMap<Integer, Integer>();
+		this.requestedBackups = new HashMap<String, Map<Integer, ReplicationInfo>>();
 		this.requestsPool = Executors.newCachedThreadPool();	
 	}
 	
@@ -115,6 +114,9 @@ public class ControlChannelThread extends ChannelThread{
 			case "STORED":
 			{
 				process_StoredMessage(message);
+				synchronized(this){
+					incrementBackupNumberOfChunk(message.getChunkNumber());
+				}
 				break;
 			}
 			case "GETCHUNK":
@@ -202,12 +204,19 @@ public class ControlChannelThread extends ChannelThread{
 		multicast_control_socket = new MulticastSocket(Values.multicast_control_group_port);
 		multicast_control_socket.joinGroup(Values.multicast_control_group_address);
 	}
-	public static MulticastSocket getMulticast_control_socket(){
-		return multicast_control_socket;
-	}
-	public static void setMulticast_control_socket(
-			MulticastSocket multicast_control_socket){
-		ControlChannelThread.multicast_control_socket = multicast_control_socket;
+	
+	public void incrementBackupNumberOfChunk(int chunkNo){
+		
+		int currentNumber = 0;
+		
+		try{
+			currentNumber = this.numberOfBackupsPerChunk.get(chunkNo);
+		}catch(NullPointerException e){
+		
+		}finally{	
+			currentNumber++;
+			this.numberOfBackupsPerChunk.put(chunkNo, currentNumber);
+		}
 	}
 	
 	public ExecutorService getRequestsPool() {
@@ -217,8 +226,30 @@ public class ControlChannelThread extends ChannelThread{
 		this.requestsPool = requestsPool;
 	}
 
+	public static MulticastSocket getMulticast_control_socket(){
+		return multicast_control_socket;
+	}
+	public static void setMulticast_control_socket(
+			MulticastSocket multicast_control_socket){
+		ControlChannelThread.multicast_control_socket = multicast_control_socket;
+	}
+	
+	public synchronized int getNumberOfBackupsFromChunkNo(int chunkNum){
+		try{
+			return this.numberOfBackupsPerChunk.get(chunkNum);
+		}catch(NullPointerException e){
+			
+			return -1;
+		}
+	}
+	public synchronized HashMap<Integer, Integer> getNumberOfBackupsPerChunk(){
+		return numberOfBackupsPerChunk;
+	}
+	public synchronized void setNumberOfBackupsPerChunk(
+			HashMap<Integer, Integer> numberOfBackupsPerChunk) {
+		this.numberOfBackupsPerChunk = numberOfBackupsPerChunk;
+	}
 	public synchronized Map<Integer, ReplicationInfo> getChunksFromFile(String file){
-		
 		return this.requestedBackups.get(file);
 	}
 	public synchronized ReplicationInfo getChunkReplicationInfo(int chunk, String file){	
@@ -230,7 +261,6 @@ public class ControlChannelThread extends ChannelThread{
 	public synchronized int getChunkCurrentReplicationStatus(int chunk, String file){		
 		return this.requestedBackups.get(file).get(chunk).getCurrentReplication();	
 	}
-	
 	public synchronized HashMap<String, Map<Integer, ReplicationInfo>> getRequestedBackups() {
 		return requestedBackups;
 	}

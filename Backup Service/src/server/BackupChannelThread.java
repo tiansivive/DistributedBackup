@@ -65,8 +65,8 @@ public class BackupChannelThread extends ChannelThread {
 	        	System.out.println("\n\n------------------------Received backup request------------------------\n");
 	            String[] fields = requestHeader.split(" ");
 	            
-	            if(this.getServer().getControl_thread().getChunkCurrentReplicationStatus(Integer.parseInt(fields[3]), fields[2]) 
-	            		< this.getServer().getControl_thread().getChunkDesiredReplication(Integer.parseInt(fields[3]), fields[2])){ //checks if this chunk has already been stored the number of desired times
+	            if(this.getServer().getControl_thread().getNumberOfBackupsFromChunkNo(Integer.parseInt(fields[3])) 
+	            		< Integer.parseInt(fields[4])){ //checks if this chunk has already been stored the number of desired times
 	            	
 		          
 		            String data = request.substring(endOfHeaderIndex+4);
