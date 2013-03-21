@@ -2,7 +2,7 @@
 	"availableSpaceOnServer":1000,
 	"filesToBackup": [ 
 		{
-			"path":"config.json",
+			"path":"config.jsonk",
 			"replicationDegree":3
 		},
 		{

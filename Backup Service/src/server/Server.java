@@ -164,7 +164,7 @@ public class Server{
 	    }
 	}
 
-	public void send_file(String fileId, String chunkNumber) {
+	public synchronized void send_file(String fileId, String chunkNumber) {
 	    String key = fileId + ":" + chunkNumber;
 	    if(packets_sent.containsKey(key)){
 	        try {
@@ -205,7 +205,7 @@ public class Server{
 		backup_thread.setServer(this);
 		backup_thread.start();
 		restore_thread.setServer(this);
-		restore_thread.start();	
+		restore_thread.start();
 	}
 
 	/**
