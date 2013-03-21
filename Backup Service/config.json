@@ -2,7 +2,7 @@
 	"availableSpaceOnServer":1000,
 	"filesToBackup": [ 
 		{
-			"path":"config.jsonk",
+			"path":"config.json",
 			"replicationDegree":3
 		},
 		{
@@ -14,7 +14,7 @@
 			"replicationDegree":2
 		},
 		{
-			"path":"C:/Users/ei09144/Downloads/ESOF.eap",
+			"path":"C:/Users/ei09144/Downloads/ESOF.eapk",
 			"replicationDegree":2
 		}
 		,

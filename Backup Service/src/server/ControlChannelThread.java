@@ -39,7 +39,7 @@ public class ControlChannelThread extends ChannelThread{
 	 * The number of replicated chunks of a given file from another machine's backup request that have been stored in other machines.
 	 * 
 	 */
-	private HashMap<String,Map<Integer, Integer> > numberOfBackupsPerChunk; //map<ChunkNo,numOfBackups>
+	private HashMap<String, Map<Integer, Integer> > numberOfBackupsPerChunk; //map<ChunkNo,numOfBackups>
 	
 	private HashSet<String> completelyBackedUpFiles; 
 	private Thread backupRequestsCompletion_Supervisor;
@@ -172,6 +172,8 @@ public class ControlChannelThread extends ChannelThread{
 	}
 	private void process_StoredMessage(Header message){
 		
+		
+		System.out.println("cenas");
 		if(!this.requestedBackups.containsKey(message.getFileID())){
 			
 			incrementBackupNumberOfChunk(message.getFileID(), message.getChunkNumber());
@@ -225,27 +227,40 @@ public class ControlChannelThread extends ChannelThread{
 		
 	}
 	
+	/**
+	 * Increments the number of chunk replicas from someone else's backup request
+	 * 
+	 * @param file
+	 * @param chunkNo
+	 */
 	public synchronized void incrementBackupNumberOfChunk(String file, int chunkNo){
 		
-		int currentNumber = 0;
-		@SuppressWarnings("unused")
+		int currentNumber = 0;	
 		Map<Integer, Integer> tmp = null;
 		
-		try{//Checks if the file is already in the Map as a key
-			tmp = this.numberOfBackupsPerChunk.get(file);
-		}catch(NullPointerException e){
-			this.numberOfBackupsPerChunk.put(file, null);//If not puts it there
+		
+		if(this.numberOfBackupsPerChunk.containsKey(file)){ //Checks if the file is already in the Map as a key
+			if(this.numberOfBackupsPerChunk.get(file).containsKey(chunkNo)){ //Checks if, for this file, this particular chunk already has some replicas
+				currentNumber = this.numberOfBackupsPerChunk.get(file).get(chunkNo);
+				currentNumber++;
+			}else{
+				currentNumber = 1;//In this case this particular chunk has never been backed up so this is its first replica
+			}
+		}else{
+			tmp = new HashMap<Integer, Integer>();
+			currentNumber = 1; //Here it's the first chunk being backed up for this particular file so, again, it's the first replica
+			this.numberOfBackupsPerChunk.put(file, tmp);//Stores this file as a key with the mapped value being empty
 		}
 		
-		try{
-			currentNumber = this.numberOfBackupsPerChunk.get(file).get(chunkNo);//Checks if there already is a key chunkNo for the indicated file		
-		}catch(NullPointerException e){				
-			currentNumber = 0;	//If not, then the number of Replicas is 0
-		}finally{
-			currentNumber++; //Updates value of replicas
-			this.numberOfBackupsPerChunk.get(file).put(chunkNo, currentNumber);//updates the number of replicas of said chunk
-		}
+		this.numberOfBackupsPerChunk.get(file).put(chunkNo, currentNumber);//updates the number of replicas of said chunk
+		
 	}
+	/**
+	 * Increments a chunk's replicationStatus from one of this machine's backup requests
+	 * 
+	 * @param file
+	 * @param chunkNo
+	 */
 	public synchronized void incrementCurrentReplicationOfChunk(String file, int chunkNo){
 		
 		this.getChunkReplicationInfo(chunkNo, file).incrementCurrentReplication();
@@ -270,6 +285,7 @@ public class ControlChannelThread extends ChannelThread{
 						
 						if(requestedBackups.isEmpty()){
 							synchronized(this){
+								System.out.println(this.getName() + " is going to wait...");
 								this.wait();
 							}
 						}
