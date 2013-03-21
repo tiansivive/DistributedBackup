@@ -32,6 +32,7 @@ public class BackupChannelThread extends ChannelThread {
     private static BackupChannelThread instance;
     private static long numberChunksBackedUp;
     private static ArrayList<InetAddress> machineAddresses;
+    private static InetAddress thisMachineAddress;
        
 	private BackupChannelThread() {
 		
@@ -45,6 +46,7 @@ public class BackupChannelThread extends ChannelThread {
 	    backedFiles = new HashMap<String,ArrayList<Integer>>();
 	    numberChunksBackedUp = 0;
 	    machineAddresses = new ArrayList<InetAddress>();
+	    thisMachineAddress = null;
 	    
 	    // not a very elegant solution, but it works
 	    Enumeration<NetworkInterface> nets;
@@ -87,12 +89,18 @@ public class BackupChannelThread extends ChannelThread {
 	}
 	
 	private boolean fromThisMachine(InetAddress src){
-	    for(InetAddress a : machineAddresses) {
-	        if(a.getHostAddress().compareTo(src.getHostAddress()) == 0) {
-	            return true;
+	    if(thisMachineAddress == null) {
+	        for(InetAddress a : machineAddresses) {
+	            if(a.getHostAddress().compareTo(src.getHostAddress()) == 0) {
+	                thisMachineAddress = a;
+	                machineAddresses = null;
+	                return true;
+	            }
 	        }
+	        return false;
+	    } else {
+	        return (thisMachineAddress.getHostAddress().compareTo(src.getHostAddress()) == 0);
 	    }
-	    return false;
 	}
 
 	private void processRequest(String request) {
