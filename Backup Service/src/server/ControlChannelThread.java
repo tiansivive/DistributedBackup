@@ -4,6 +4,7 @@ import java.io.IOException;
 import java.net.*;
 import java.util.*;
 import java.util.concurrent.*;
+import javax.management.InstanceAlreadyExistsException;
 
 
 import protocols.Header;
@@ -20,6 +21,7 @@ public class ControlChannelThread extends ChannelThread{
 	 *  */
 	private static MulticastSocket multicast_control_socket;
 	private ExecutorService requestsPool;
+	private static ControlChannelThread instance;
 	
 	/**
 	 * The backup requests this machine sent to others.
@@ -83,12 +85,18 @@ public class ControlChannelThread extends ChannelThread{
 
 	
 	
-	public ControlChannelThread(){
-		
+	private ControlChannelThread(){
 		this.setName("ControlThread");
 		this.numberOfBackupsPerChunk = new HashMap<String, Map<Integer, Integer> >();
 		this.requestedBackups = new HashMap<String, Map<Integer, ReplicationInfo> >();
 		this.requestsPool = Executors.newCachedThreadPool();	
+	}
+	
+	public static ControlChannelThread getInstance(){
+	    if(instance == null) {
+	        instance = new ControlChannelThread();
+	    }
+	    return instance;
 	}
 	
 	
@@ -99,10 +107,11 @@ public class ControlChannelThread extends ChannelThread{
 		
 		while(true){
 			try{
-				multicast_control_socket.receive(datagram);
-				//System.out.println(new String(datagram.getData()));
-				String msg = new String(datagram.getData()).substring(0, datagram.getLength());
-				this.requestsPool.execute(new RequestTask(msg));
+			    multicast_control_socket.receive(datagram);
+			    if(!Server.fromThisMachine(datagram.getAddress())){
+			        String msg = new String(datagram.getData()).substring(0, datagram.getLength());
+			        this.requestsPool.execute(new RequestTask(msg));
+			    }
 			}catch(IOException e){
 				// TODO Auto-generated catch block
 				e.printStackTrace();

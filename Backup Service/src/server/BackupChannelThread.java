@@ -31,8 +31,6 @@ public class BackupChannelThread extends ChannelThread {
     private static HashMap<String,ArrayList<Integer>> backedFiles;
     private static BackupChannelThread instance;
     private static long numberChunksBackedUp;
-    private static ArrayList<InetAddress> machineAddresses;
-    private static InetAddress thisMachineAddress;
        
 	private BackupChannelThread() {
 		
@@ -45,22 +43,6 @@ public class BackupChannelThread extends ChannelThread {
 	    }
 	    backedFiles = new HashMap<String,ArrayList<Integer>>();
 	    numberChunksBackedUp = 0;
-	    machineAddresses = new ArrayList<InetAddress>();
-	    thisMachineAddress = null;
-	    
-	    // not a very elegant solution, but it works
-	    Enumeration<NetworkInterface> nets;
-	    try {
-	        nets = NetworkInterface.getNetworkInterfaces();
-	        for (NetworkInterface netint : Collections.list(nets)) {
-	            Enumeration<InetAddress> inetAddresses = netint.getInetAddresses();
-	            for (InetAddress inetAddress : Collections.list(inetAddresses)) {
-	                machineAddresses.add(inetAddress);
-	            }
-	        }
-	    } catch (SocketException e) {
-	        e.printStackTrace();
-	    }
 	}
 
 	public static BackupChannelThread getInstance() {
@@ -75,34 +57,19 @@ public class BackupChannelThread extends ChannelThread {
 		byte[] buffer = new byte[65000];
 		DatagramPacket datagram = new DatagramPacket(buffer, buffer.length);
 		while(true){
-			try{
-			    multicast_backup_socket.receive(datagram);
-			    if(!fromThisMachine(datagram.getAddress())){
-			        byte[] temp = new byte[datagram.getLength()];
-			        System.arraycopy(datagram.getData(), 0, temp, 0, datagram.getLength());
-			        incomingRequestsPool.execute(new RequestWorker(temp));
-			    }
-			}catch(IOException e){
-			    e.printStackTrace();
-			} 
+		    try{
+		        multicast_backup_socket.receive(datagram);
+		        if(!Server.fromThisMachine(datagram.getAddress())){
+		            byte[] temp = new byte[datagram.getLength()];
+		            System.arraycopy(datagram.getData(), 0, temp, 0, datagram.getLength());
+		            incomingRequestsPool.execute(new RequestWorker(temp));
+		        }
+		    }catch(IOException e){
+		        e.printStackTrace();
+		    } 
 		}
 	}
 	
-	private boolean fromThisMachine(InetAddress src){
-	    if(thisMachineAddress == null) {
-	        for(InetAddress a : machineAddresses) {
-	            if(a.getHostAddress().compareTo(src.getHostAddress()) == 0) {
-	                thisMachineAddress = a;
-	                machineAddresses = null;
-	                return true;
-	            }
-	        }
-	        return false;
-	    } else {
-	        return (thisMachineAddress.getHostAddress().compareTo(src.getHostAddress()) == 0);
-	    }
-	}
-
 	private void processRequest(String request) {
 
 	    int endOfHeaderIndex;

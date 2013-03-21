@@ -18,10 +18,12 @@ public class Server{
 	private RestoreChannelThread restore_thread;
 	private HashMap<String,DatagramPacket> packets_sent;
 	public static Random rand;
+	private static ArrayList<InetAddress> machineAddresses;
+	private static InetAddress thisMachineAddress;
 
 	public class FileToBackup {
-		public String path;
-		public int replicationDegree;
+	    public String path;
+	    public int replicationDegree;
 	}
 
 	public class Config {
@@ -32,6 +34,22 @@ public class Server{
 	public Server() {
 	    packets_sent = new HashMap<String,DatagramPacket>();
 	    rand = new Random();
+	    machineAddresses = new ArrayList<InetAddress>();
+        thisMachineAddress = null;
+        
+        // not a very elegant solution, but it works
+        Enumeration<NetworkInterface> nets;
+        try {
+            nets = NetworkInterface.getNetworkInterfaces();
+            for (NetworkInterface netint : Collections.list(nets)) {
+                Enumeration<InetAddress> inetAddresses = netint.getInetAddresses();
+                for (InetAddress inetAddress : Collections.list(inetAddresses)) {
+                    machineAddresses.add(inetAddress);
+                }
+            }
+        } catch (SocketException e) {
+            e.printStackTrace();
+        }
 	}
 
 	public void mainLoop() {
@@ -64,7 +82,7 @@ public class Server{
 				System.out.println("\nThe file/dir "+file.getAbsolutePath()+" doesn't exist!");
 			}
 		}
-		System.out.println("\n\n------------------------FINISHED PROCESSING FILES------------------------\n");
+		System.out.println("\n\n----------------------FINISHED PROCESSING FILES------------------------\n");
 		send_files();
 	}
 
@@ -157,6 +175,20 @@ public class Server{
 	        }
 	    }
 	}
+	
+	public static boolean fromThisMachine(InetAddress src){
+        if(thisMachineAddress == null) {
+            for(InetAddress a : machineAddresses) {
+                if(a.getHostAddress().compareTo(src.getHostAddress()) == 0) {
+                    thisMachineAddress = a;
+                    return true;
+                }
+            }
+            return false;
+        } else {
+            return (thisMachineAddress.getHostAddress().compareTo(src.getHostAddress()) == 0);
+        }
+    }
 
 	/**
 	 * Run_threads.
@@ -164,9 +196,9 @@ public class Server{
 	public void run_threads(){
 
 		Thread.currentThread().setName("MainThread");
-		control_thread = new ControlChannelThread(); // TODO change to singleton pattern
+		control_thread = ControlChannelThread.getInstance();
 		backup_thread = BackupChannelThread.getInstance();
-		restore_thread = new RestoreChannelThread(); // TODO change to singleton pattern
+		restore_thread = RestoreChannelThread.getInstance();
 
 		control_thread.setServer(this);
 		control_thread.start();

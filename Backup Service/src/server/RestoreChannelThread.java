@@ -14,6 +14,18 @@ public class RestoreChannelThread extends ChannelThread{
 	 *  That is why it wasn't extracted to the superclass and also why it has to be static.
 	 *  */
 	private static MulticastSocket multicast_restore_socket;
+	private static RestoreChannelThread instance;
+	
+	private RestoreChannelThread(){
+	    
+	}
+	
+	public static RestoreChannelThread getInstance(){
+	    if(instance == null){
+	        instance = new RestoreChannelThread();
+	    }
+	    return instance;
+	}
 
 	/**
 	 * Init_socket.
