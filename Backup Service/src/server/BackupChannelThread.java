@@ -82,7 +82,9 @@ public class BackupChannelThread extends ChannelThread {
 	        if(requestHeader.matches(headerPattern)) {
 	            if(this.getServer().getControl_thread().getNumberOfBackupsFromChunkNo(fields[2], Integer.parseInt(fields[3])) 
 	                    < Integer.parseInt(fields[4])){ //checks if this chunk has a ready been stored the number of desired times
-
+	            	
+	            	this.getServer().getControl_thread().incrementBackupNumberOfChunk(fields[2], Integer.parseInt(fields[3]));//tell the controlThread we're backing up a chunk, since it won't receive packets sent from the same machine
+	            	
 	                String data = request.substring(endOfHeaderIndex+4);
 	                File directory = new File(Values.directory_to_backup_files+"/"+fields[2]);
 	                File output = new File(Values.directory_to_backup_files+"/"+fields[2]+"/chunk_"+fields[3]);

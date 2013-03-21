@@ -4,6 +4,7 @@ import java.io.IOException;
 import java.net.*;
 import java.util.*;
 import java.util.concurrent.*;
+import java.util.Map.Entry;
 import javax.management.InstanceAlreadyExistsException;
 
 
@@ -36,6 +37,9 @@ public class ControlChannelThread extends ChannelThread{
 	 */
 	private HashMap<String,Map<Integer, Integer> > numberOfBackupsPerChunk; //map<ChunkNo,numOfBackups>
 	
+	private HashSet<String> completelyBackedUpFiles; 
+	
+	
 	private class RequestTask implements Runnable {
 		
 		private String request;
@@ -59,9 +63,10 @@ public class ControlChannelThread extends ChannelThread{
 		public ReplicationInfo(int desired, int current){
 			this.desiredReplication = desired;
 			this.currentReplication = current;
-		}
-
-		
+		}	
+		public boolean hasReachedDesiredReplication(){		
+			return (currentReplication >= desiredReplication);
+		}	
 		public void incrementCurrentReplication(){
 			this.currentReplication++;
 		}
@@ -87,9 +92,12 @@ public class ControlChannelThread extends ChannelThread{
 	
 	private ControlChannelThread(){
 		this.setName("ControlThread");
+		this.completelyBackedUpFiles = new HashSet<String>();
 		this.numberOfBackupsPerChunk = new HashMap<String, Map<Integer, Integer> >();
 		this.requestedBackups = new HashMap<String, Map<Integer, ReplicationInfo> >();
 		this.requestsPool = Executors.newCachedThreadPool();	
+		
+		this.initializeBackgroundMaintenanceProcesses();
 	}
 	
 	public static ControlChannelThread getInstance(){
@@ -157,8 +165,22 @@ public class ControlChannelThread extends ChannelThread{
 			}
 		}
 	}
+	private void process_StoredMessage(Header message){
+		
+		if(!this.requestedBackups.containsKey(message.getFileID())){
+			
+			incrementBackupNumberOfChunk(message.getFileID(), message.getChunkNumber());
+			
+			System.out.println(Thread.currentThread().getName() + ":\nReceived someone else's STORED message");
+			return;
+		}else{
+			
+			this.incrementCurrentReplicationOfChunk(message.getFileID(), message.getChunkNumber());	
+			System.out.println(Thread.currentThread().getName() + ":\nReceived confirmation that a replica has been backed up");
+		}
 
-	private void process_RemovedMessage(Header message){
+	}
+	private void process_GetChunkMessage(Header message){
 		// TODO Auto-generated method stub
 		
 	}
@@ -166,23 +188,9 @@ public class ControlChannelThread extends ChannelThread{
 		// TODO Auto-generated method stub
 		
 	}
-	private void process_GetChunkMessage(Header message){
+	private void process_RemovedMessage(Header message){
 		// TODO Auto-generated method stub
 		
-	}
-	private void process_StoredMessage(Header message){
-		
-		if(!this.requestedBackups.containsKey(message.getFileID())){
-			
-			incrementBackupNumberOfChunk(message.getFileID(), message.getChunkNumber());
-			
-			System.out.println("Received someone else's STORED message\nDiscarding...");
-			return;
-		}else{
-					
-			getChunkReplicationInfo(message.getChunkNumber(), message.getFileID()).incrementCurrentReplication();
-		}
-
 	}
 	
 	public synchronized void updateRequestedBackups(Header info){
@@ -193,7 +201,8 @@ public class ControlChannelThread extends ChannelThread{
 		
 		if(!this.requestedBackups.containsKey(info.getFileID())){
 			
-			this.requestedBackups.put(info.getFileID(), chunkInfo);					
+			this.requestedBackups.put(info.getFileID(), chunkInfo);
+			this.notifyAll();
 		}else{
 			
 			if(!this.getChunksFromFile(info.getFileID()).containsKey(info.getChunkNumber())){
@@ -206,19 +215,6 @@ public class ControlChannelThread extends ChannelThread{
 			}
 		}
 		
-	}
-	
-	
-	
-	/**
-	 * Init_socket.
-	 *
-	 * @throws IOException Signals that an I/O exception has occurred.
-	 */
-	public static void init_socket() throws IOException{
-		
-		multicast_control_socket = new MulticastSocket(Values.multicast_control_group_port);
-		multicast_control_socket.joinGroup(Values.multicast_control_group_address);
 	}
 	
 	public synchronized void incrementBackupNumberOfChunk(String file, int chunkNo){
@@ -241,6 +237,123 @@ public class ControlChannelThread extends ChannelThread{
 			currentNumber++; //Updates value of replicas
 			this.numberOfBackupsPerChunk.get(file).put(chunkNo, currentNumber);//updates the number of replicas of said chunk
 		}
+	}
+	public synchronized void incrementCurrentReplicationOfChunk(String file, int chunkNo){
+		
+		this.getChunkReplicationInfo(chunkNo, file).incrementCurrentReplication();
+	}
+
+	
+	
+	
+	private void initializeBackgroundMaintenanceProcesses(){
+		
+		Thread backupRequestsCompletion_Supervisor = new Thread(){
+			
+			private int delay = 500;
+			private HashMap<String, Set<Integer>> chunksWithMissigReplicas;
+			
+			public void run(){
+				
+				this.setDaemon(true);
+				chunksWithMissigReplicas = new HashMap<String, Set<Integer>>();
+						
+				try {
+					while(true){
+						
+						if(requestedBackups.isEmpty()){
+							this.wait();
+						}
+						this.wait(delay);
+						
+						this.checkCompletionOfBackupRequests();
+						
+						if(!chunksWithMissigReplicas.isEmpty()){
+							requestMissingReplicas();
+							delay = delay*2;
+						}else{
+							
+							requestedBackups.clear();
+							delay = 500;
+						}
+						
+						
+					}			
+				}catch (InterruptedException e){
+					
+					
+					// TODO Auto-generated catch block
+					e.printStackTrace();
+				}
+			}
+			
+			private void requestMissingReplicas() {
+				
+				Iterator<?> filesIterator = chunksWithMissigReplicas.keySet().iterator();
+				
+				while(filesIterator.hasNext()){
+					
+					String fileID = (String) filesIterator.next();
+					
+					Iterator<?> chunksIterator = chunksWithMissigReplicas.get(fileID).iterator();
+					while(chunksIterator.hasNext()){
+						
+						String chunkNumber = Integer.toString((Integer) chunksIterator.next());
+						getServer().send_file(fileID, chunkNumber);
+					}		
+				}		
+			}
+
+			private void checkCompletionOfBackupRequests(){
+				
+				Iterator<?> filesIterator = requestedBackups.keySet().iterator();
+								
+				while(filesIterator.hasNext()){
+					
+					String fileID = (String) filesIterator.next();
+					Iterator<?> chunksIterator = requestedBackups.get(fileID).entrySet().iterator();
+					Set<Integer> chunksWithoutDesiredReplication = new HashSet<Integer>();
+					while(chunksIterator.hasNext()){
+						
+						@SuppressWarnings("unchecked")
+						Map.Entry<Integer, ReplicationInfo> pair = (Entry<Integer, ReplicationInfo>) chunksIterator.next();
+						
+						if(!pair.getValue().hasReachedDesiredReplication()){
+							chunksWithoutDesiredReplication.add(pair.getKey());
+							
+							//TODO re-send PUTCHUNK in Server
+						}else{
+							//TODO does nothing for now, 
+							//CANNOT remove chunks from the requestBackups Hashmap as if a stored message is then received then it'll reset that chunk's currentReplication status to 0
+						}
+					}
+					
+					if(chunksWithoutDesiredReplication.isEmpty()){
+						completelyBackedUpFiles.add(fileID);
+						filesIterator.remove();
+						chunksWithMissigReplicas.remove(fileID);
+					}else{
+						chunksWithMissigReplicas.put(fileID, chunksWithoutDesiredReplication);
+					}
+					
+				}			
+			}
+		};
+		
+		
+		backupRequestsCompletion_Supervisor.start();
+		
+	}
+	
+	/**
+	 * Init_socket.
+	 *
+	 * @throws IOException Signals that an I/O exception has occurred.
+	 */
+	public static void init_socket() throws IOException{
+		
+		multicast_control_socket = new MulticastSocket(Values.multicast_control_group_port);
+		multicast_control_socket.joinGroup(Values.multicast_control_group_address);
 	}
 	
 	public ExecutorService getRequestsPool() {
