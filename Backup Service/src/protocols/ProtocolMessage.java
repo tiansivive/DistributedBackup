@@ -43,18 +43,14 @@ public class ProtocolMessage{
 		
 		int headStringLength = head.getBytes().length;
 		int CRLF_length = Header.getCRLF().length;
-
 		
 		byte[] headBuf = new byte[headStringLength + CRLF_length*2]; //length of the header information plus length of both <CRLF>
-		
 		
 		System.arraycopy(head.getBytes(), 0, headBuf, 0, headStringLength);
 		System.arraycopy(Header.getCRLF(), 0, headBuf, headStringLength, CRLF_length); //First header CRLF
 		System.arraycopy(Header.getCRLF(), 0, headBuf, headStringLength + CRLF_length, CRLF_length); //Second header CRLF
-		
 	
 		if(body != null){
-			
 			byte[] protocolBuf = new byte[headBuf.length + body.length];
 			System.arraycopy(headBuf, 0, protocolBuf, 0, headBuf.length);
 			System.arraycopy(body, 0, protocolBuf, headBuf.length, body.length);
@@ -62,8 +58,6 @@ public class ProtocolMessage{
 		}
 		
 		return headBuf;
-		
-			
 	}
 	
 	

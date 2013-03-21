@@ -1,24 +1,17 @@
 package server;
 
-import java.io.BufferedWriter;
 import java.io.File;
 import java.io.FileOutputStream;
-import java.io.FileWriter;
 import java.io.IOException;
 import java.net.DatagramPacket;
-import java.net.InetAddress;
 import java.net.MulticastSocket;
 import java.util.ArrayList;
-import java.util.Hashtable;
+import java.util.HashMap;
 import java.util.Random;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
-import com.google.gson.Gson;
-
 import protocols.ProtocolMessage;
-import server.Server.Config;
-
 import constantValues.Values;
 
 public class BackupChannelThread extends ChannelThread {
@@ -26,13 +19,12 @@ public class BackupChannelThread extends ChannelThread {
 	/**The multicast socket this thread works on
 	 * 
 	 *  There is only one socket per type of channelThread, i.e the subclasses of ChannelThread;
-	 *  That is why it wasn't extracted to the superclass and also why it has to be static.
+	 *  That is why it wasn't extracted to  the superclass and also why it has to be static.
 	 *  */
 	private static MulticastSocket multicast_backup_socket;
     private static ExecutorService incomingRequestsPool;
     private static File backupDirectory;
-    private static Random rand;
-    private static Hashtable<String,ArrayList<Integer>> backedFiles;
+    private static HashMap<String,ArrayList<Integer>> backedFiles;
     private static BackupChannelThread instance;
     private static long numberChunksBackedUp;
        
@@ -45,8 +37,7 @@ public class BackupChannelThread extends ChannelThread {
 	        System.out.println("Error creating backups directory. You may not have write permission");
 	        System.exit(-1);
 	    }
-	    rand = new Random();
-	    backedFiles = new Hashtable<String,ArrayList<Integer>>();
+	    backedFiles = new HashMap<String,ArrayList<Integer>>();
 	    numberChunksBackedUp = 0;
 	}
 	
@@ -69,11 +60,11 @@ public class BackupChannelThread extends ChannelThread {
 			    System.arraycopy(datagram.getData(), 0, temp, 0, datagram.getLength());
                 incomingRequestsPool.execute(new RequestWorker(temp));
 			}catch(IOException e){
-				e.printStackTrace();
+			    e.printStackTrace();
 			} 
 		}
-    }
-	
+	}
+
 	private void processRequest(String request) {
 
 	    int endOfHeaderIndex;
@@ -85,7 +76,7 @@ public class BackupChannelThread extends ChannelThread {
 
 	        if(requestHeader.matches(headerPattern)) {
 	            if(this.getServer().getControl_thread().getNumberOfBackupsFromChunkNo(fields[2], Integer.parseInt(fields[3])) 
-	                    < Integer.parseInt(fields[4])){ //checks if this chunk has already been stored the number of desired times
+	                    < Integer.parseInt(fields[4])){ //checks if this chunk has a ready been stored the number of desired times
 
 	                String data = request.substring(endOfHeaderIndex+4);
 	                File directory = new File(Values.directory_to_backup_files+"/"+fields[2]);
@@ -105,14 +96,15 @@ public class BackupChannelThread extends ChannelThread {
 	                    fop.close();
 	                    numberChunksBackedUp++;
 
-	                    if(backedFiles.containsKey(fields[2])) {
-	                        backedFiles.get(fields[2]).add(new Integer(fields[3]));
-	                        System.out.println("KEY EXISTED ALREADY!");
-	                    } else {
-	                        backedFiles.put(fields[2], new ArrayList<Integer>());
-	                        backedFiles.get(fields[2]).add(new Integer(fields[3]));
-	                        System.out.println("KEY EXISTS!");
+	                    synchronized (this) { // prevent multiple access to the hashmap
+	                        if(backedFiles.containsKey(fields[2])) {
+	                            backedFiles.get(fields[2]).add(new Integer(fields[3]));
+	                        } else {
+	                            backedFiles.put(fields[2], new ArrayList<Integer>());
+	                            backedFiles.get(fields[2]).add(new Integer(fields[3]));
+	                        }
 	                    }
+
 	                } catch (IOException e) {
 	                    e.printStackTrace();
 	                    // TODO what to do here?
@@ -138,7 +130,7 @@ public class BackupChannelThread extends ChannelThread {
 			DatagramPacket packet = new DatagramPacket(buf, buf.length, Values.multicast_control_group_address, Values.multicast_control_group_port);
 
 			// waiting between 0 and 400 miliseconds before sending response
-			int delay = rand.nextInt(401);
+			int delay = Server.rand.nextInt(Values.backup_thread_response_delay+1);
 			Thread.sleep(delay);
 			ControlChannelThread.getMulticast_control_socket().send(packet);
 			System.out.println("Sent STORED message");

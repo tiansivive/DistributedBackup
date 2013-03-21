@@ -3,6 +3,8 @@ package server;
 import java.io.*;
 import java.net.*;
 import java.util.*;
+import java.util.Map.Entry;
+
 import protocols.*;
 import com.google.gson.*;
 
@@ -14,6 +16,8 @@ public class Server{
 	private ControlChannelThread control_thread;
 	private BackupChannelThread backup_thread;
 	private RestoreChannelThread restore_thread;
+	private HashMap<String,DatagramPacket> packets_sent;
+	public static Random rand;
 
 	public class FileToBackup {
 		public String path;
@@ -23,6 +27,11 @@ public class Server{
 	public class Config {
 		public int availableSpaceOnServer;
 		public ArrayList<FileToBackup> filesToBackup;
+	}
+	
+	public Server() {
+	    packets_sent = new HashMap<String,DatagramPacket>();
+	    rand = new Random();
 	}
 
 	public void mainLoop() {
@@ -47,37 +56,36 @@ public class Server{
 			File file = new File(f.path);
 			if(file.exists()) {
 				if(file.isDirectory()) {
-					send_directory(file, f.replicationDegree);
+					process_directory(file, f.replicationDegree);
 				} else {
-					send_file(file, f.replicationDegree);
+					process_file(file, f.replicationDegree);
 
 				}
 			} else {
 				System.out.println("The file/dir "+file.getName()+" doesn't exist!");
 			}
 		}
+		send_files();
 	}
 
-	public void send_directory(File directory, int replicationDegree) {
+	public void process_directory(File directory, int replicationDegree) {
 		File[] files = directory.listFiles();
 		for(File f : files) {
 			if(f.isDirectory()) {
-				send_directory(f, replicationDegree);
+				process_directory(f, replicationDegree);
 			} else {
 				if(!f.isHidden()) {
-					send_file(f, replicationDegree);
+					process_file(f, replicationDegree);
 				}
 			}
 		}
 	}
 
-	public void send_file(final File file, final int replicationDegree) {
+	public void process_file(final File file, final int replicationDegree) {
 
 		String fileIdentifier = HashString.getFileIdentifier(file);
-		
 			
 		try {
-			
 			FileInputStream fileInputStream = new FileInputStream(file);
 			byte[] dataBytes = new byte[64000];
 			int chunkSize = -1;
@@ -91,7 +99,7 @@ public class Server{
 					+ "\nReplication degree: " + replicationDegree
 					+ "\nChunks: " + (int)Math.ceil(file.length()/64000.0));
 			
-			while ((chunkSize = fileInputStream.read(dataBytes)) != -1){ //read from file into dataBytes
+			while ((chunkSize = fileInputStream.read(dataBytes)) != -1){
 				
 			    if(chunkSize < 64000) {
 			        byte[] temp = new byte[chunkSize];
@@ -112,21 +120,45 @@ public class Server{
 				byte[] buf = ProtocolMessage.toBytes(head, dataBytes);
 				
 				DatagramPacket packet = new DatagramPacket(buf, buf.length, Values.multicast_backup_group_address, Values.multicast_backup_group_port);
-				BackupChannelThread.getMulticast_backup_socket().send(packet);
-				
-				System.out.println("\nSent " + packet.getLength() + " bytes");
-				System.out.println("------------------------Chunk sent------------------------\n\n");
+				System.out.println("Added packet with key: "+fileIdentifier+":"+chunkNum+" to the hashmap");
+				packets_sent.put(fileIdentifier+":"+chunkNum, packet);
 				chunkNum++;
 			}
-			
 			fileInputStream.close();
-
 		} catch (IOException e) {
 			e.printStackTrace();
 			//System.exit(-1);
 		}
 	}
 	
+	private void send_files() {
+	    Iterator<Entry<String,DatagramPacket>> it = packets_sent.entrySet().iterator();
+	    while (it.hasNext()) {
+	        Map.Entry<String,DatagramPacket> pair = (Map.Entry<String,DatagramPacket>)it.next();
+	        int delay = Server.rand.nextInt(Values.server_sending_packets_delay+1);
+	        try {
+	            Thread.sleep(delay);
+	            BackupChannelThread.getMulticast_backup_socket().send(pair.getValue());
+	            System.out.println("\nSent " + pair.getValue().getLength() + " bytes");
+	        } catch (InterruptedException | IOException e) {
+	            e.printStackTrace();
+	            // TODO what to do here?
+	        }
+	    }
+	}
+
+	public void send_file(String fileId, String chunkNumber) {
+	    String key = fileId + ":" + chunkNumber;
+	    if(packets_sent.containsKey(key)){
+	        try {
+	            BackupChannelThread.getMulticast_backup_socket().send(packets_sent.get(key));
+	        } catch (IOException e) {
+	            e.printStackTrace();
+	            // TODO what to do here?
+	        }
+	    }
+	}
+
 	/**
 	 * Run_threads.
 	 */
