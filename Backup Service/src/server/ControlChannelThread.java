@@ -94,7 +94,6 @@ public class ControlChannelThread extends ChannelThread{
 	
 	@Override
 	public void run(){
-		/*
 		byte[] buffer = new byte[256];
 		DatagramPacket datagram = new DatagramPacket(buffer, buffer.length);
 		
@@ -109,7 +108,6 @@ public class ControlChannelThread extends ChannelThread{
 				e.printStackTrace();
 			}
 		}	
-		*/
 	}
 
 	private void processRequest(String msg){

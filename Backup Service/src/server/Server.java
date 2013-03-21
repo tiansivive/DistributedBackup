@@ -41,7 +41,6 @@ public class Server{
 		BufferedReader bufferedReader = null;
 
 		try {
-			System.out.println("Opening config file");
 			bufferedReader = new BufferedReader(new FileReader("config.json"));
 		} catch (FileNotFoundException e) {
 			//e.printStackTrace();
@@ -51,7 +50,7 @@ public class Server{
 
 		Config config = gson.fromJson(bufferedReader, Config.class);
 
-		// go through each file and send it
+		// go through each file and build the packets
 		for(FileToBackup f : config.filesToBackup) {
 			File file = new File(f.path);
 			if(file.exists()) {
@@ -62,9 +61,10 @@ public class Server{
 
 				}
 			} else {
-				System.out.println("The file/dir "+file.getName()+" doesn't exist!");
+				System.out.println("\nThe file/dir "+file.getAbsolutePath()+" doesn't exist!");
 			}
 		}
+		System.out.println("\n\n------------------------FINISHED PROCESSING FILES------------------------\n");
 		send_files();
 	}
 
@@ -91,13 +91,14 @@ public class Server{
 			int chunkSize = -1;
 			int chunkNum = 0;
 			
-			System.out.println("\n\n------------------------SENDING FILE------------------------\n"
+			System.out.println("\n\n------------------------PROCESSING NEW FILE------------------------\n"
 					+ "\nFilename: " + file.getName() 
 					+ "\nSize: " + file.length() 
 					+ "\nProtocol version: " + Values.protocol_version
 					+ "\nFile identifier: " + fileIdentifier
 					+ "\nReplication degree: " + replicationDegree
-					+ "\nChunks: " + (int)Math.ceil(file.length()/64000.0));
+					+ "\nChunks: " + (int)Math.ceil(file.length()/64000.0)
+					+ "\n");
 			
 			while ((chunkSize = fileInputStream.read(dataBytes)) != -1){
 				
@@ -107,8 +108,8 @@ public class Server{
 			        dataBytes = temp;
 			    }
 				
-				System.out.println("\nSENDING CHUNK NUMBER: " + chunkNum);
-				System.out.println("Chunk size: " + chunkSize);
+				System.out.print("CREATING CHUNK #" + chunkNum);
+				System.out.println(" WITH SIZE: " + chunkSize + " BYTES");
 				
 				String head = Values.backup_chunk_data_message_identifier + " "
 									+ Values.protocol_version + " "
@@ -120,7 +121,6 @@ public class Server{
 				byte[] buf = ProtocolMessage.toBytes(head, dataBytes);
 				
 				DatagramPacket packet = new DatagramPacket(buf, buf.length, Values.multicast_backup_group_address, Values.multicast_backup_group_port);
-				System.out.println("Added packet with key: "+fileIdentifier+":"+chunkNum+" to the hashmap");
 				packets_sent.put(fileIdentifier+":"+chunkNum, packet);
 				chunkNum++;
 			}
@@ -139,7 +139,6 @@ public class Server{
 	        try {
 	            Thread.sleep(delay);
 	            BackupChannelThread.getMulticast_backup_socket().send(pair.getValue());
-	            System.out.println("\nSent " + pair.getValue().getLength() + " bytes");
 	        } catch (InterruptedException | IOException e) {
 	            e.printStackTrace();
 	            // TODO what to do here?

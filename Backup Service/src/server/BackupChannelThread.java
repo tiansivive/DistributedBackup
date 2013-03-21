@@ -4,10 +4,14 @@ import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.net.DatagramPacket;
+import java.net.InetAddress;
 import java.net.MulticastSocket;
+import java.net.NetworkInterface;
+import java.net.SocketException;
 import java.util.ArrayList;
+import java.util.Collections;
+import java.util.Enumeration;
 import java.util.HashMap;
-import java.util.Random;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
@@ -27,6 +31,7 @@ public class BackupChannelThread extends ChannelThread {
     private static HashMap<String,ArrayList<Integer>> backedFiles;
     private static BackupChannelThread instance;
     private static long numberChunksBackedUp;
+    private static ArrayList<InetAddress> machineAddresses;
        
 	private BackupChannelThread() {
 		
@@ -39,8 +44,23 @@ public class BackupChannelThread extends ChannelThread {
 	    }
 	    backedFiles = new HashMap<String,ArrayList<Integer>>();
 	    numberChunksBackedUp = 0;
+	    machineAddresses = new ArrayList<InetAddress>();
+	    
+	    // not a very elegant solution, but it works
+	    Enumeration<NetworkInterface> nets;
+	    try {
+	        nets = NetworkInterface.getNetworkInterfaces();
+	        for (NetworkInterface netint : Collections.list(nets)) {
+	            Enumeration<InetAddress> inetAddresses = netint.getInetAddresses();
+	            for (InetAddress inetAddress : Collections.list(inetAddresses)) {
+	                machineAddresses.add(inetAddress);
+	            }
+	        }
+	    } catch (SocketException e) {
+	        e.printStackTrace();
+	    }
 	}
-	
+
 	public static BackupChannelThread getInstance() {
 	    if(instance == null) {
 	        instance = new BackupChannelThread();
@@ -55,14 +75,24 @@ public class BackupChannelThread extends ChannelThread {
 		while(true){
 			try{
 			    multicast_backup_socket.receive(datagram);
-			    System.out.println("ADDRESS: "+datagram.getAddress());
-			    byte[] temp = new byte[datagram.getLength()];
-			    System.arraycopy(datagram.getData(), 0, temp, 0, datagram.getLength());
-                incomingRequestsPool.execute(new RequestWorker(temp));
+			    if(!fromThisMachine(datagram.getAddress())){
+			        byte[] temp = new byte[datagram.getLength()];
+			        System.arraycopy(datagram.getData(), 0, temp, 0, datagram.getLength());
+			        incomingRequestsPool.execute(new RequestWorker(temp));
+			    }
 			}catch(IOException e){
 			    e.printStackTrace();
 			} 
 		}
+	}
+	
+	private boolean fromThisMachine(InetAddress src){
+	    for(InetAddress a : machineAddresses) {
+	        if(a.getHostAddress().compareTo(src.getHostAddress()) == 0) {
+	            return true;
+	        }
+	    }
+	    return false;
 	}
 
 	private void processRequest(String request) {
@@ -83,7 +113,7 @@ public class BackupChannelThread extends ChannelThread {
 	                File output = new File(Values.directory_to_backup_files+"/"+fields[2]+"/chunk_"+fields[3]);
 
 	                try {
-	                    if(!directory.mkdir() && !directory.exists()) {
+	                    if(!directory.mkdirs() && !directory.exists()) {
 	                        System.out.println("Error creating file directory.");
 	                    }
 	                    if(!output.createNewFile()) {
@@ -163,7 +193,7 @@ public class BackupChannelThread extends ChannelThread {
 		multicast_backup_socket.joinGroup(Values.multicast_backup_group_address);
 		multicast_backup_socket.setTimeToLive(1);
 	}
-	
+
 	public static MulticastSocket getMulticast_backup_socket() {
 		return multicast_backup_socket;
 	}
