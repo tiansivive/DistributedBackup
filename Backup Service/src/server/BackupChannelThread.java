@@ -75,21 +75,26 @@ public class BackupChannelThread extends ChannelThread {
 	        System.out.println("\n\n------------------------Received backup request------------------------\n");
 	        String[] fields = requestHeader.split(" ");
 
-	        //With each new PUTCHUNK, the information about the received chunk's replicas on the controlThread is reset to 0
+	        
+	    	//With each new PUTCHUNK, the information about the received chunk's replicas on the controlThread is reset to 0
 	        //This way, while this thread is waiting, the controlThread will update the chunk's replication status accordingly
-	        getServer().getControl_thread().resetChunkReplicationStatus(fields[2], fields[3]);
+	        try {	
+	        	//If reset returns false it's because another thread has already invoked reset before any increment  which could lead to double increments
+	        	while(!getServer().getControl_thread().resetChunkReplicationStatus(fields[2], fields[3])){
+					Thread.sleep(100);
+	        	}
+	        	int delay = Server.rand.nextInt(Values.backup_thread_response_delay+1);
+	        	Thread.sleep(delay);
+	        } catch (InterruptedException e1) {
+	        	// TODO Auto-generated catch block
+	        	e1.printStackTrace();
+	        }
 	        
-			try {	
-				int delay = Server.rand.nextInt(Values.backup_thread_response_delay+1);
-				Thread.sleep(delay);
-			} catch (InterruptedException e1) {
-				// TODO Auto-generated catch block
-				e1.printStackTrace();
-			}
-	        
-	        if(requestHeader.matches(headerPattern)) {
+	        if(requestHeader.matches(headerPattern)) {	        	
 	            if(getServer().getControl_thread().getNumberOfBackupsFromChunkNo(fields[2], Integer.parseInt(fields[3])) 
 	                    < Integer.parseInt(fields[4])){ //checks if this chunk has a ready been stored the number of desired times
+	            	
+	            	this.getServer().getControl_thread().incrementBackupNumberOfChunk(fields[2], Integer.parseInt(fields[3]));
 	            	
 	                String data = request.substring(endOfHeaderIndex+4);
 	                File directory = new File(Values.directory_to_backup_files+"/"+fields[2]);
@@ -120,7 +125,6 @@ public class BackupChannelThread extends ChannelThread {
 	                        }
 	                      
 	                    }
-	                    this.getServer().getControl_thread().incrementBackupNumberOfChunk(fields[2], Integer.parseInt(fields[3]));
 	                    sendStoredMessage(fields);
 
 	                } catch (IOException e) {
@@ -151,7 +155,7 @@ public class BackupChannelThread extends ChannelThread {
 			Thread.sleep(delay);
 			
 			ControlChannelThread.getMulticast_control_socket().send(packet);
-			System.out.println("Sent STORED message");
+			System.out.println(Thread.currentThread().getName() + " sent STORED message");
 			
 		} catch (IOException | InterruptedException e) {
 			e.printStackTrace();

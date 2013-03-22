@@ -246,11 +246,13 @@ public class Server{
 	        try {
 	            Thread.sleep(delay);
 	            BackupChannelThread.getMulticast_backup_socket().send(pair.getValue());
+	            System.out.println("\n----------------Sent PUTCHUNK message----------------\n");
 	        } catch (InterruptedException | IOException e) {
 	            e.printStackTrace();
 	            // TODO what to do here?
 	        }
 	    }
+	    this.getControl_thread().notifyDaemonSupervisor();//Some improving needs to be done
 	}
 
 	public synchronized void send_file(String fileId, String chunkNumber) {
@@ -260,6 +262,7 @@ public class Server{
 	        try {
 	            Thread.sleep(delay);
 	            BackupChannelThread.getMulticast_backup_socket().send(packets_sent.get(key));
+	            System.out.println("\n----------------Sent PUTCHUNK message----------------\n");
 	        } catch (IOException | InterruptedException e) {
 	            e.printStackTrace();
 	            // TODO what to do here?
