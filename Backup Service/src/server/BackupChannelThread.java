@@ -170,7 +170,6 @@ public class BackupChannelThread extends ChannelThread {
         }
     }
 	
-
 	
 	/**
 	 * Init_socket.
