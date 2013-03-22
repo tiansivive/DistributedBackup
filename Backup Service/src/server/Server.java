@@ -101,7 +101,7 @@ public class Server{
                 }
                     break;
                 case "2": {
-                    System.out.println("Backup a file");
+                    backupNewFile();
                 }
                     break;
                 case "3": {

@@ -368,9 +368,11 @@ public class ControlChannelThread extends ChannelThread{
 								System.out.println(this.getName() + " is going to wait...");
 								this.wait();
 								Thread.sleep(5000);// Wait 5 seconds to start re-sending chunks
+								System.out.println(this.getName() + " has waken up...");
+								continue;
 							}
 						}
-						System.out.println(this.getName() + " is awake...");
+						System.out.println(this.getName() + " REQUESTED BACKUPS IS NOT EMPTY. WE STILL DON'T HAVE ALL FILES WITH OUR DESIRED REPLICATION DEGREE");
 						synchronized(this){
 							this.wait(delay);
 						}
