@@ -83,7 +83,7 @@ public class BackupChannelThread extends ChannelThread {
 	            if(this.getServer().getControl_thread().getNumberOfBackupsFromChunkNo(fields[2], Integer.parseInt(fields[3])) 
 	                    < Integer.parseInt(fields[4])){ //checks if this chunk has a ready been stored the number of desired times
 	            	
-	            	this.getServer().getControl_thread().incrementBackupNumberOfChunk(fields[2], Integer.parseInt(fields[3]));//tell the controlThread we're backing up a chunk, since it won't receive packets sent from the same machine
+	            	//this.getServer().getControl_thread().incrementBackupNumberOfChunk(fields[2], Integer.parseInt(fields[3]));//tell the controlThread we're backing up a chunk, since it won't receive packets sent from the same machine
 	            	
 	                String data = request.substring(endOfHeaderIndex+4);
 	                File directory = new File(Values.directory_to_backup_files+"/"+fields[2]);
@@ -95,28 +95,30 @@ public class BackupChannelThread extends ChannelThread {
 	                    }
 	                    if(!output.createNewFile()) {
 	                        System.out.println("Chunk already backed up.");
-	                        // TODO we have to send another Stored message??? It's sending for now
-	                    }
-	                    FileOutputStream fop = new FileOutputStream(output);
-	                    fop.write(data.getBytes());
-	                    fop.flush();
-	                    fop.close();
-	                    numberChunksBackedUp++;
+	                    } else {
+	                        this.getServer().getControl_thread().incrementBackupNumberOfChunk(fields[2], Integer.parseInt(fields[3]));
 
-	                    synchronized (this) { // prevent multiple access to the hashmap
-	                        if(backedFiles.containsKey(fields[2])) {
-	                            backedFiles.get(fields[2]).add(new Integer(fields[3]));
-	                        } else {
-	                            backedFiles.put(fields[2], new ArrayList<Integer>());
-	                            backedFiles.get(fields[2]).add(new Integer(fields[3]));
+	                        FileOutputStream fop = new FileOutputStream(output);
+	                        fop.write(data.getBytes());
+	                        fop.flush();
+	                        fop.close();
+
+	                        synchronized (this) { // prevent multiple access to the hashmap
+	                            numberChunksBackedUp++;
+	                            if(backedFiles.containsKey(fields[2])) {
+	                                backedFiles.get(fields[2]).add(new Integer(fields[3]));
+	                            } else {
+	                                backedFiles.put(fields[2], new ArrayList<Integer>());
+	                                backedFiles.get(fields[2]).add(new Integer(fields[3]));
+	                            }
 	                        }
+	                        sendStoredMessage(fields);
 	                    }
 
 	                } catch (IOException e) {
 	                    e.printStackTrace();
 	                    // TODO what to do here?
 	                }
-	                sendStoredMessage(fields);
 	            } else {
 	                System.out.println("Chunk has already been stored enough times");
 	            }
@@ -139,6 +141,7 @@ public class BackupChannelThread extends ChannelThread {
 			// waiting between 0 and 400 miliseconds before sending response
 			int delay = Server.rand.nextInt(Values.backup_thread_response_delay+1);
 			Thread.sleep(delay);
+			
 			ControlChannelThread.getMulticast_control_socket().send(packet);
 			System.out.println("Sent STORED message");
 			
