@@ -1,7 +1,10 @@
 package server;
 
 import java.io.IOException;
+import java.net.DatagramPacket;
 import java.net.MulticastSocket;
+
+import server.BackupChannelThread.RequestWorker;
 import constantValues.Values;
 
 
@@ -26,6 +29,24 @@ public class RestoreChannelThread extends ChannelThread{
 	    }
 	    return instance;
 	}
+	
+	@Override
+    public void run(){
+        byte[] buffer = new byte[65000];
+        DatagramPacket datagram = new DatagramPacket(buffer, buffer.length);
+        while(true){
+            try{
+                multicast_backup_socket.receive(datagram);
+                if(!Server.fromThisMachine(datagram.getAddress())){
+                    byte[] temp = new byte[datagram.getLength()];
+                    System.arraycopy(datagram.getData(), 0, temp, 0, datagram.getLength());
+                    incomingRequestsPool.execute(new RequestWorker(temp));
+                }
+            }catch(IOException e){
+                e.printStackTrace();
+            } 
+        }
+    }
 
 	/**
 	 * Init_socket.

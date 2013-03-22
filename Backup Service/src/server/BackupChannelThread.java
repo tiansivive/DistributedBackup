@@ -86,29 +86,34 @@ public class BackupChannelThread extends ChannelThread {
 	                try {
 	                    if(!directory.mkdirs() && !directory.exists()) {
 	                        System.out.println("Error creating file directory.");
-	                    }
-	                    if(!output.createNewFile()) {
-	                        System.out.println("Chunk already backed up.");
 	                    } else {
-	                        this.getServer().getControl_thread().incrementBackupNumberOfChunk(fields[2], Integer.parseInt(fields[3]));
 
-	                        FileOutputStream fop = new FileOutputStream(output);
-	                        fop.write(data.getBytes());
-	                        fop.flush();
-	                        fop.close();
+	                        if(!output.createNewFile()) {
+	                            System.out.println("Chunk already backed up.");
+	                        } else {
+	                            this.getServer().getControl_thread().incrementBackupNumberOfChunk(fields[2], Integer.parseInt(fields[3]));
 
-	                        synchronized (this) { // prevent multiple access to the hashmap
-	                            numberChunksBackedUp++;
-	                            if(backedFiles.containsKey(fields[2])) {
-	                                backedFiles.get(fields[2]).add(new Integer(fields[3]));
-	                            } else {
-	                                backedFiles.put(fields[2], new ArrayList<Integer>());
-	                                backedFiles.get(fields[2]).add(new Integer(fields[3]));
+	                            FileOutputStream fop = new FileOutputStream(output);
+	                            fop.write(data.getBytes());
+	                            fop.flush();
+	                            fop.close();
+
+	                            synchronized (this) { // prevent multiple access to the hashmap
+	                                numberChunksBackedUp++;
+	                                if(backedFiles.containsKey(fields[2])) {
+	                                    backedFiles.get(fields[2]).add(new Integer(fields[3]));
+	                                } else {
+	                                    backedFiles.put(fields[2], new ArrayList<Integer>());
+	                                    backedFiles.get(fields[2]).add(new Integer(fields[3]));
+	                                }
 	                            }
 	                        }
+	                        /* it must send a STORED message to every PUTCHUNK message it receives, 
+	                         * the peer that made the request is the one that must save the addresses of
+	                         * the servers that backed that chunk
+	                         */
 	                        sendStoredMessage(fields);
 	                    }
-
 	                } catch (IOException e) {
 	                    e.printStackTrace();
 	                    // TODO what to do here?

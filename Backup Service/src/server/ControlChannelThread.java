@@ -135,9 +135,8 @@ public class ControlChannelThread extends ChannelThread{
 
 	private void processRequest(String msg){
 
-		
 		System.out.println("\nControl Channel data\nMessage received: " + msg);
-	
+		
 		Header message = new Header(msg);
 		
 		switch(message.getMessageType()){
@@ -290,7 +289,7 @@ public class ControlChannelThread extends ChannelThread{
 								this.wait();
 							}
 						}
-						System.out.println(this.getName() + ": aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa");
+						System.out.println(this.getName() + ": REQUESTED BACKUPS IS NOT EMPTY. WE STILL DON'T HAVE ALL FILES WITH OUR DESIRED REPLICATION DEGREE");
 						synchronized(this){
 							this.wait(delay);
 						}
