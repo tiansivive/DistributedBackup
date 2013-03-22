@@ -124,7 +124,10 @@ public class ControlChannelThread extends ChannelThread{
 			    multicast_control_socket.receive(datagram);
 			    if(!Server.fromThisMachine(datagram.getAddress())){
 			        String msg = new String(datagram.getData()).substring(0, datagram.getLength());
+			        System.out.println("RECEIVED SOMETHING IN CONTROL THREAD");
 			        this.requestsPool.execute(new RequestTask(msg));
+			    } else {
+			        System.out.println("ERROR IN FROM THIS MACHINE");
 			    }
 			}catch(IOException e){
 				// TODO Auto-generated catch block
@@ -234,23 +237,26 @@ public class ControlChannelThread extends ChannelThread{
 	 * @param chunkNo
 	 */
 	public synchronized void incrementBackupNumberOfChunk(String file, int chunkNo){
-		
-		int currentNumber = 0;	
-		Map<Integer, Integer> tmp = null;
-		
-		
-		if(this.numberOfBackupsPerChunk.containsKey(file)){ //Checks if the file is already in the Map as a key
-			if(this.numberOfBackupsPerChunk.get(file).containsKey(chunkNo)){ //Checks if, for this file, this particular chunk already has some replicas
-				currentNumber = this.numberOfBackupsPerChunk.get(file).get(chunkNo);
-				currentNumber++;
-			}else{
-				currentNumber = 1;//In this case this particular chunk has never been backed up so this is its first replica
-			}
-		}else{
-			tmp = new HashMap<Integer, Integer>();
-			currentNumber = 1; //Here it's the first chunk being backed up for this particular file so, again, it's the first replica
-			this.numberOfBackupsPerChunk.put(file, tmp);//Stores this file as a key with the mapped value being empty
-		}
+
+	    int currentNumber = 0;	
+	    Map<Integer, Integer> tmp = null;
+
+
+	    if(this.numberOfBackupsPerChunk.containsKey(file)){ //Checks if the file is already in the Map as a key
+	        if(this.numberOfBackupsPerChunk.get(file).containsKey(chunkNo)){ //Checks if, for this file, this particular chunk already has some replicas
+	            currentNumber = this.numberOfBackupsPerChunk.get(file).get(chunkNo);
+	            currentNumber++;
+	            System.out.println("\n------------------------------\n"
+	                    +"INCREMENTING BACKUP REPLICAS NUMBER TO: " + currentNumber
+	                    +"\n------------------------------\n");
+	        }else{
+	            currentNumber = 1;//In this case this particular chunk has never been backed up so this is its first replica
+	        }
+	    }else{
+	        tmp = new HashMap<Integer, Integer>();
+	        currentNumber = 1; //Here it's the first chunk being backed up for this particular file so, again, it's the first replica
+	        this.numberOfBackupsPerChunk.put(file, tmp);//Stores this file as a key with the mapped value being empty
+	    }
 		
 		this.numberOfBackupsPerChunk.get(file).put(chunkNo, currentNumber);//updates the number of replicas of said chunk
 		
@@ -266,8 +272,25 @@ public class ControlChannelThread extends ChannelThread{
 		this.getChunkReplicationInfo(chunkNo, file).incrementCurrentReplication();
 	}
 
-	
-	
+	/**
+     * 
+     * Resets a chunk's number of replicas to 0, after receiving a PUTCHUNK, in order to properly count new in-bound STORED messages
+     * 
+     * @param file
+     * @param chunkNo
+     */
+    public synchronized void resetChunkReplicationStatus(String file, String chunkNo){
+        
+        int currentNumber = 0; //Resetting replicas to 0
+        Map<Integer, Integer> tmp = null;
+        
+        if(!this.numberOfBackupsPerChunk.containsKey(file)){ //Checks if the file is already in the Map as a key    
+            tmp = new HashMap<Integer, Integer>();
+            this.numberOfBackupsPerChunk.put(file, tmp);//Stores this file as a key with the mapped value being empty
+        }
+        
+        this.numberOfBackupsPerChunk.get(file).put(Integer.parseInt(chunkNo), currentNumber);//updates the number of replicas of said chunk
+    }
 	
 	private void initializeBackgroundMaintenanceProcesses(){
 		
@@ -389,6 +412,7 @@ public class ControlChannelThread extends ChannelThread{
 		
 		multicast_control_socket = new MulticastSocket(Values.multicast_control_group_port);
 		multicast_control_socket.joinGroup(Values.multicast_control_group_address);
+		multicast_control_socket.setTimeToLive(1);
 	}
 	
 	public ExecutorService getRequestsPool() {

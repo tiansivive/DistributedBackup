@@ -4,7 +4,6 @@ import java.io.IOException;
 import java.net.DatagramPacket;
 import java.net.MulticastSocket;
 
-import server.BackupChannelThread.RequestWorker;
 import constantValues.Values;
 
 
@@ -32,6 +31,7 @@ public class RestoreChannelThread extends ChannelThread{
 	
 	@Override
     public void run(){
+	    /*
         byte[] buffer = new byte[65000];
         DatagramPacket datagram = new DatagramPacket(buffer, buffer.length);
         while(true){
@@ -46,6 +46,7 @@ public class RestoreChannelThread extends ChannelThread{
                 e.printStackTrace();
             } 
         }
+        */
     }
 
 	/**
@@ -57,6 +58,7 @@ public class RestoreChannelThread extends ChannelThread{
 		
 		multicast_restore_socket = new MulticastSocket(Values.multicast_restore_group_port);
 		multicast_restore_socket.joinGroup(Values.multicast_restore_group_address);
+		multicast_restore_socket.setTimeToLive(1);
 	}
 	
 	public static MulticastSocket getMulticast_restore_socket(){

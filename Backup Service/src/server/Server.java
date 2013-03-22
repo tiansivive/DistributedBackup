@@ -46,6 +46,8 @@ public class Server{
         
         // not a very elegant solution, but it works
         Enumeration<NetworkInterface> nets;
+        
+        
         try {
             nets = NetworkInterface.getNetworkInterfaces();
             for (NetworkInterface netint : Collections.list(nets)) {
