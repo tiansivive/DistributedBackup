@@ -274,11 +274,11 @@ public class ControlChannelThread extends ChannelThread{
 		backupRequestsCompletion_Supervisor = new Thread(){
 			
 			private int delay = 500;
-			private HashMap<String, Set<Integer>> chunksWithMissigReplicas;
+			private HashMap<String, Set<Integer>> chunksWithMissingReplicas;
 			
 			public void run(){
 				
-				chunksWithMissigReplicas = new HashMap<String, Set<Integer>>();
+				chunksWithMissingReplicas = new HashMap<String, Set<Integer>>();
 						
 				try {
 					while(true){
@@ -295,7 +295,7 @@ public class ControlChannelThread extends ChannelThread{
 						}
 						this.checkCompletionOfBackupRequests();
 						
-						if(!chunksWithMissigReplicas.isEmpty()){
+						if(!chunksWithMissingReplicas.isEmpty()){
 							requestMissingReplicas();
 							delay = delay*2;
 						}else{
@@ -318,13 +318,13 @@ public class ControlChannelThread extends ChannelThread{
 			
 			private void requestMissingReplicas() {
 				
-				Iterator<?> filesIterator = chunksWithMissigReplicas.keySet().iterator();
+				Iterator<?> filesIterator = chunksWithMissingReplicas.keySet().iterator();
 				
 				while(filesIterator.hasNext()){
 					
 					String fileID = (String) filesIterator.next();
 					
-					Iterator<?> chunksIterator = chunksWithMissigReplicas.get(fileID).iterator();
+					Iterator<?> chunksIterator = chunksWithMissingReplicas.get(fileID).iterator();
 					while(chunksIterator.hasNext()){
 						
 						String chunkNumber = Integer.toString((Integer) chunksIterator.next());
@@ -335,7 +335,7 @@ public class ControlChannelThread extends ChannelThread{
 
 			private void checkCompletionOfBackupRequests(){
 				
-				Iterator<?> filesIterator;
+				Iterator<String> filesIterator;
 				
 				synchronized(getServer().getControl_thread()){
 					filesIterator = requestedBackups.keySet().iterator();
@@ -343,11 +343,10 @@ public class ControlChannelThread extends ChannelThread{
 				while(filesIterator.hasNext()){
 
 					String fileID = (String) filesIterator.next();
-					Iterator<?> chunksIterator = requestedBackups.get(fileID).entrySet().iterator();
+					Iterator<Entry<Integer, ReplicationInfo>> chunksIterator = requestedBackups.get(fileID).entrySet().iterator();
 					Set<Integer> chunksWithoutDesiredReplication = new HashSet<Integer>();
 					while(chunksIterator.hasNext()){
 
-						@SuppressWarnings("unchecked")
 						Map.Entry<Integer, ReplicationInfo> pair = (Entry<Integer, ReplicationInfo>) chunksIterator.next();
 
 						if(!pair.getValue().hasReachedDesiredReplication()){
@@ -365,9 +364,9 @@ public class ControlChannelThread extends ChannelThread{
 						synchronized(getServer().getControl_thread()){
 							filesIterator.remove();
 						}
-						chunksWithMissigReplicas.remove(fileID);
+						chunksWithMissingReplicas.remove(fileID);
 					}else{
-						chunksWithMissigReplicas.put(fileID, chunksWithoutDesiredReplication);
+						chunksWithMissingReplicas.put(fileID, chunksWithoutDesiredReplication);
 					}
 
 				}	

@@ -153,7 +153,7 @@ public class Server{
 	    Iterator<Entry<String,DatagramPacket>> it = packets_sent.entrySet().iterator();
 	    while (it.hasNext()) {
 	        Map.Entry<String,DatagramPacket> pair = (Map.Entry<String,DatagramPacket>)it.next();
-	        int delay = Server.rand.nextInt(Values.server_sending_packets_delay+1);
+	        int delay = Server.rand.nextInt(301)+Values.server_sending_packets_delay;
 	        try {
 	            Thread.sleep(delay);
 	            BackupChannelThread.getMulticast_backup_socket().send(pair.getValue());
@@ -167,9 +167,11 @@ public class Server{
 	public synchronized void send_file(String fileId, String chunkNumber) {
 	    String key = fileId + ":" + chunkNumber;
 	    if(packets_sent.containsKey(key)){
+	        int delay = Server.rand.nextInt(301)+Values.server_sending_packets_delay;
 	        try {
+	            Thread.sleep(delay);
 	            BackupChannelThread.getMulticast_backup_socket().send(packets_sent.get(key));
-	        } catch (IOException e) {
+	        } catch (IOException | InterruptedException e) {
 	            e.printStackTrace();
 	            // TODO what to do here?
 	        }

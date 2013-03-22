@@ -27,7 +27,7 @@ public class Values{
 	public static String protocol_version = "1.0";
 	public static final String directory_to_backup_files = "BACKUPS";
 	
-	public static final int server_sending_packets_delay = 50;
+	public static final int server_sending_packets_delay = 100;
 	public static final int backup_thread_response_delay = 400;
 	
 	
