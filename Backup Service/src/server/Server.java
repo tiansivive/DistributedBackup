@@ -13,29 +13,35 @@ import constantValues.Values;
 
 public class Server{
 
-	private ControlChannelThread control_thread;
-	private BackupChannelThread backup_thread;
-	private RestoreChannelThread restore_thread;
-	private HashMap<String,DatagramPacket> packets_sent;
-	public static Random rand;
-	private static ArrayList<InetAddress> machineAddresses;
+	private static ControlChannelThread control_thread;
+	private static BackupChannelThread backup_thread;
+	private static RestoreChannelThread restore_thread;
 	private static InetAddress thisMachineAddress;
-
-	public class FileToBackup {
+	private static ArrayList<InetAddress> machineAddresses;
+	private static Server instance;
+	
+	public static Random rand;
+	
+	private HashMap<String,DatagramPacket> packets_sent;
+	private Config config;
+	
+	
+	
+	private class FileToBackup {
 	    public String path;
 	    public int replicationDegree;
 	}
 
-	public class Config {
+	private class Config {
 		public int availableSpaceOnServer;
 		public ArrayList<FileToBackup> filesToBackup;
 	}
 	
-	public Server() {
+	private Server() {
 	    packets_sent = new HashMap<String,DatagramPacket>();
-	    rand = new Random();
-	    machineAddresses = new ArrayList<InetAddress>();
-        thisMachineAddress = null;
+	    Server.rand = new Random();
+	    Server.machineAddresses = new ArrayList<InetAddress>();
+        Server.thisMachineAddress = null;
         
         // not a very elegant solution, but it works
         Enumeration<NetworkInterface> nets;
@@ -44,52 +50,95 @@ public class Server{
             for (NetworkInterface netint : Collections.list(nets)) {
                 Enumeration<InetAddress> inetAddresses = netint.getInetAddresses();
                 for (InetAddress inetAddress : Collections.list(inetAddresses)) {
-                    machineAddresses.add(inetAddress);
+                    Server.machineAddresses.add(inetAddress);
                 }
             }
         } catch (SocketException e) {
             e.printStackTrace();
         }
 	}
+	
+	public static Server getInstance() {
+	    if(instance == null) {
+	        instance = new Server();
+	    }
+	    return instance;
+	}
 
 	public void mainLoop() {
 		run_threads();
-
+		
 		Gson gson = new Gson();
-		BufferedReader bufferedReader = null;
+        BufferedReader bufferedReader = null;
 
-		try {
-			bufferedReader = new BufferedReader(new FileReader("config.json"));
-		} catch (FileNotFoundException e) {
-			//e.printStackTrace();
-			System.out.println("Configuration file is missing. Shutting down the server.");
-			System.exit(-1);
+        try {
+            bufferedReader = new BufferedReader(new FileReader("config.json"));
+            config = gson.fromJson(bufferedReader, Config.class);
+        } catch (FileNotFoundException e) {
+            System.out.println("Configuration file is missing. Shutting down the server.");
+            System.exit(-1);
+        }
+
+        bufferedReader = new BufferedReader(new InputStreamReader(System.in));
+        
+		while(true) {
+		    System.out.println("-----------   BACKUP SERVICE   -----------\n");
+		    System.out.println(" 1 - Backup our files");
+		    System.out.println(" 2 - Backup a file");
+		    System.out.println(" 3 - Exit");
+		    System.out.println("\n------------------------------------------");
+		    System.out.print("\nOption: ");
+		    
+		    String userInput;
+            try {
+                userInput = bufferedReader.readLine();
+                
+                switch (userInput) {
+                case "1": {
+                    backupFiles();
+                }
+                    break;
+                case "2": {
+                    System.out.println("Backup a file");
+                }
+                    break;
+                case "3": {
+                    System.exit(-1);
+                }
+                    break;
+                default:
+                    break;
+                }
+                
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
 		}
-
-		Config config = gson.fromJson(bufferedReader, Config.class);
-
-		// go through each file and build the packets
-		for(FileToBackup f : config.filesToBackup) {
-			File file = new File(f.path);
-			if(file.exists()) {
-				if(file.isDirectory()) {
-					process_directory(file, f.replicationDegree);
-				} else {
-					process_file(file, f.replicationDegree);
-
-				}
-			} else {
-				System.out.println("\nThe file/dir "+file.getAbsolutePath()+" doesn't exist!");
-			}
-		}
-		System.out.println("\n\n----------------------FINISHED PROCESSING FILES------------------------\n");
-		send_files();
 	}
 
-	public void process_directory(File directory, int replicationDegree) {
-		File[] files = directory.listFiles();
-		for(File f : files) {
-			if(f.isDirectory()) {
+	private void backupFiles() {
+	    // go through each file and build the packets
+	    for(FileToBackup f : config.filesToBackup) {
+	        File file = new File(f.path);
+	        if(file.exists()) {
+	            if(file.isDirectory()) {
+	                process_directory(file, f.replicationDegree);
+	            } else {
+	                process_file(file, f.replicationDegree);
+
+	            }
+	        } else {
+	            System.out.println("\nThe file/dir "+file.getAbsolutePath()+" doesn't exist!");
+	        }
+	    }
+	    System.out.println("\n\n----------------------FINISHED PROCESSING FILES------------------------\n");
+	    send_files();
+	}
+
+	private void process_directory(File directory, int replicationDegree) {
+	    File[] files = directory.listFiles();
+	    for(File f : files) {
+	        if(f.isDirectory()) {
 				process_directory(f, replicationDegree);
 			} else {
 				if(!f.isHidden()) {
@@ -99,7 +148,7 @@ public class Server{
 		}
 	}
 
-	public void process_file(final File file, final int replicationDegree) {
+	private void process_file(final File file, final int replicationDegree) {
 
 		String fileIdentifier = HashString.getFileIdentifier(file);
 			
@@ -135,7 +184,7 @@ public class Server{
 									+ chunkNum + " "
 									+ replicationDegree;
 				
-				this.control_thread.updateRequestedBackups(new Header(head));
+				Server.control_thread.updateRequestedBackups(new Header(head));
 				byte[] buf = ProtocolMessage.toBytes(head, dataBytes);
 				
 				DatagramPacket packet = new DatagramPacket(buf, buf.length, Values.multicast_backup_group_address, Values.multicast_backup_group_port);
@@ -153,7 +202,7 @@ public class Server{
 	    Iterator<Entry<String,DatagramPacket>> it = packets_sent.entrySet().iterator();
 	    while (it.hasNext()) {
 	        Map.Entry<String,DatagramPacket> pair = (Map.Entry<String,DatagramPacket>)it.next();
-	        int delay = Server.rand.nextInt(301)+Values.server_sending_packets_delay;
+	        int delay = Server.rand.nextInt(201)+Values.server_sending_packets_delay;
 	        try {
 	            Thread.sleep(delay);
 	            BackupChannelThread.getMulticast_backup_socket().send(pair.getValue());
@@ -167,7 +216,7 @@ public class Server{
 	public synchronized void send_file(String fileId, String chunkNumber) {
 	    String key = fileId + ":" + chunkNumber;
 	    if(packets_sent.containsKey(key)){
-	        int delay = Server.rand.nextInt(301)+Values.server_sending_packets_delay;
+	        int delay = Server.rand.nextInt(201)+Values.server_sending_packets_delay;
 	        try {
 	            Thread.sleep(delay);
 	            BackupChannelThread.getMulticast_backup_socket().send(packets_sent.get(key));
@@ -195,7 +244,7 @@ public class Server{
 	/**
 	 * Run_threads.
 	 */
-	public void run_threads(){
+	private void run_threads(){
 
 		Thread.currentThread().setName("MainThread");
 		control_thread = ControlChannelThread.getInstance();
@@ -227,19 +276,19 @@ public class Server{
 		return control_thread;
 	}
 	public void setControl_thread(ControlChannelThread control_thread) {
-		this.control_thread = control_thread;
+		Server.control_thread = control_thread;
 	}
 	public BackupChannelThread getBackup_thread() {
 		return backup_thread;
 	}
 	public void setBackup_thread(BackupChannelThread backup_thread) {
-		this.backup_thread = backup_thread;
+		Server.backup_thread = backup_thread;
 	}
 	public RestoreChannelThread getRestore_thread() {
 		return restore_thread;
 	}
 	public void setRestore_thread(RestoreChannelThread restore_thread) {
-		this.restore_thread = restore_thread;
+		Server.restore_thread = restore_thread;
 	}
 
 }

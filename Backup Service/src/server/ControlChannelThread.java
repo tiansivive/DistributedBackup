@@ -297,7 +297,7 @@ public class ControlChannelThread extends ChannelThread{
 						
 						if(!chunksWithMissingReplicas.isEmpty()){
 							requestMissingReplicas();
-							delay = delay*2;
+							//delay = delay*2;
 						}else{
 							
 							synchronized(getServer().getControl_thread()){

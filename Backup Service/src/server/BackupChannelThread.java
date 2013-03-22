@@ -4,13 +4,8 @@ import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.net.DatagramPacket;
-import java.net.InetAddress;
 import java.net.MulticastSocket;
-import java.net.NetworkInterface;
-import java.net.SocketException;
 import java.util.ArrayList;
-import java.util.Collections;
-import java.util.Enumeration;
 import java.util.HashMap;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -26,11 +21,12 @@ public class BackupChannelThread extends ChannelThread {
 	 *  That is why it wasn't extracted to  the superclass and also why it has to be static.
 	 *  */
 	private static MulticastSocket multicast_backup_socket;
-    private static ExecutorService incomingRequestsPool;
     private static File backupDirectory;
-    private static HashMap<String,ArrayList<Integer>> backedFiles;
     private static BackupChannelThread instance;
-    private static long numberChunksBackedUp;
+    
+    private HashMap<String,ArrayList<Integer>> backedFiles;
+    private long numberChunksBackedUp;
+    private ExecutorService incomingRequestsPool;
        
 	private BackupChannelThread() {
 		
@@ -80,10 +76,8 @@ public class BackupChannelThread extends ChannelThread {
 	        String[] fields = requestHeader.split(" ");
 
 	        if(requestHeader.matches(headerPattern)) {
-	            if(this.getServer().getControl_thread().getNumberOfBackupsFromChunkNo(fields[2], Integer.parseInt(fields[3])) 
+	            if(getServer().getControl_thread().getNumberOfBackupsFromChunkNo(fields[2], Integer.parseInt(fields[3])) 
 	                    < Integer.parseInt(fields[4])){ //checks if this chunk has a ready been stored the number of desired times
-	            	
-	            	//this.getServer().getControl_thread().incrementBackupNumberOfChunk(fields[2], Integer.parseInt(fields[3]));//tell the controlThread we're backing up a chunk, since it won't receive packets sent from the same machine
 	            	
 	                String data = request.substring(endOfHeaderIndex+4);
 	                File directory = new File(Values.directory_to_backup_files+"/"+fields[2]);
@@ -120,7 +114,7 @@ public class BackupChannelThread extends ChannelThread {
 	                    // TODO what to do here?
 	                }
 	            } else {
-	                System.out.println("Chunk has already been stored enough times");
+	                System.out.println("Chunk already has the desired replication degree.");
 	            }
 	        } else {
 
@@ -132,7 +126,7 @@ public class BackupChannelThread extends ChannelThread {
 	    }
 	}
 	
-	public void sendStoredMessage(String[] fields){
+	private void sendStoredMessage(String[] fields){
 		try{
 			String head = new String(Values.stored_chunk_control_message_identifier + " " + fields[1] + " " + fields[2] + " " + fields[3]);
 			byte[] buf = ProtocolMessage.toBytes(head, null);

@@ -39,7 +39,6 @@ public class Start{
 			System.exit(-1);	
 		}
 		
-		
-		new Server().mainLoop();
+		Server.getInstance().mainLoop();
 	}
 }
