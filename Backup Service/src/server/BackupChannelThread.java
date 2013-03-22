@@ -75,6 +75,18 @@ public class BackupChannelThread extends ChannelThread {
 	        System.out.println("\n\n------------------------Received backup request------------------------\n");
 	        String[] fields = requestHeader.split(" ");
 
+	        //With each new PUTCHUNK, the information about the received chunk's replicas on the controlThread is reset to 0
+	        //This way, while this thread is waiting, the controlThread will update the chunk's replication status accordingly
+	        getServer().getControl_thread().resetChunkReplicationStatus(fields[2], fields[3]);
+	        
+			try {	
+				int delay = Server.rand.nextInt(Values.backup_thread_response_delay+1);
+				Thread.sleep(delay);
+			} catch (InterruptedException e1) {
+				// TODO Auto-generated catch block
+				e1.printStackTrace();
+			}
+	        
 	        if(requestHeader.matches(headerPattern)) {
 	            if(getServer().getControl_thread().getNumberOfBackupsFromChunkNo(fields[2], Integer.parseInt(fields[3])) 
 	                    < Integer.parseInt(fields[4])){ //checks if this chunk has a ready been stored the number of desired times
@@ -89,9 +101,9 @@ public class BackupChannelThread extends ChannelThread {
 	                    }
 	                    if(!output.createNewFile()) {
 	                        System.out.println("Chunk already backed up.");
+	     
 	                    } else {
-	                        this.getServer().getControl_thread().incrementBackupNumberOfChunk(fields[2], Integer.parseInt(fields[3]));
-
+	                      
 	                        FileOutputStream fop = new FileOutputStream(output);
 	                        fop.write(data.getBytes());
 	                        fop.flush();
@@ -106,8 +118,10 @@ public class BackupChannelThread extends ChannelThread {
 	                                backedFiles.get(fields[2]).add(new Integer(fields[3]));
 	                            }
 	                        }
-	                        sendStoredMessage(fields);
+	                      
 	                    }
+	                    this.getServer().getControl_thread().incrementBackupNumberOfChunk(fields[2], Integer.parseInt(fields[3]));
+	                    sendStoredMessage(fields);
 
 	                } catch (IOException e) {
 	                    e.printStackTrace();
@@ -155,6 +169,8 @@ public class BackupChannelThread extends ChannelThread {
             processRequest(new String(request));
         }
     }
+	
+
 	
 	/**
 	 * Init_socket.

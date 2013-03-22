@@ -36,6 +36,7 @@ public class RestoreChannelThread extends ChannelThread{
 		
 		multicast_restore_socket = new MulticastSocket(Values.multicast_restore_group_port);
 		multicast_restore_socket.joinGroup(Values.multicast_restore_group_address);
+		multicast_restore_socket.setTimeToLive(1);
 	}
 	
 	public static MulticastSocket getMulticast_restore_socket(){
