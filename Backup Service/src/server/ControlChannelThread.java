@@ -57,6 +57,7 @@ public class ControlChannelThread extends ChannelThread{
             processRequest(request);
         }
     }
+	
 	private class ReplicationInfo{
 		
 		private int desiredReplication;

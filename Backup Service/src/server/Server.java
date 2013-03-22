@@ -24,7 +24,7 @@ public class Server{
 	
 	private HashMap<String,DatagramPacket> packets_sent;
 	private Config config;
-	
+	private BufferedReader bufferedReader;
 	
 	
 	private class FileToBackup {
@@ -42,6 +42,7 @@ public class Server{
 	    Server.rand = new Random();
 	    Server.machineAddresses = new ArrayList<InetAddress>();
         Server.thisMachineAddress = null;
+        bufferedReader = null;
         
         // not a very elegant solution, but it works
         Enumeration<NetworkInterface> nets;
@@ -69,7 +70,6 @@ public class Server{
 		run_threads();
 		
 		Gson gson = new Gson();
-        BufferedReader bufferedReader = null;
 
         try {
             bufferedReader = new BufferedReader(new FileReader("config.json"));
@@ -83,8 +83,8 @@ public class Server{
         
 		while(true) {
 		    System.out.println("-----------   BACKUP SERVICE   -----------\n");
-		    System.out.println(" 1 - Backup our files");
-		    System.out.println(" 2 - Backup a file");
+		    System.out.println(" 1 - Backup files in config.json");
+		    System.out.println(" 2 - Backup new file");
 		    System.out.println(" 3 - Exit");
 		    System.out.println("\n------------------------------------------");
 		    System.out.print("\nOption: ");
@@ -95,7 +95,7 @@ public class Server{
                 
                 switch (userInput) {
                 case "1": {
-                    backupFiles();
+                    backupConfigFiles();
                 }
                     break;
                 case "2": {
@@ -116,7 +116,7 @@ public class Server{
 		}
 	}
 
-	private void backupFiles() {
+	private void backupConfigFiles() {
 	    // go through each file and build the packets
 	    for(FileToBackup f : config.filesToBackup) {
 	        File file = new File(f.path);
@@ -133,6 +133,44 @@ public class Server{
 	    }
 	    System.out.println("\n\n----------------------FINISHED PROCESSING FILES------------------------\n");
 	    send_files();
+	}
+	
+	private void backupNewFile() {
+	    try {
+	        System.out.print("Path of file: ");
+            String filePath = bufferedReader.readLine();
+            
+            File file = new File(filePath);
+            if(file.exists()) {
+                if(!file.isDirectory()) {
+                    System.out.print("Replication degree (between 1 and 9): ");
+                    String replicationDegreeStr = bufferedReader.readLine();
+                    String pattern = "^[1-9]$";
+                    if(replicationDegreeStr.matches(pattern)) {
+                        String fileId = HashString.getFileIdentifier(file);
+                        int numberChunks = (int)Math.ceil(file.length()/64000.0);
+                        System.out.println("FileId = "+fileId);
+                        System.out.println("Chunks = "+numberChunks);
+                       
+                        process_file(file, Integer.parseInt(replicationDegreeStr));
+                        
+                        for(int i = 0; i < numberChunks; i++) {
+                            send_file(fileId, String.valueOf(i));
+                        }
+                    } else {
+                        System.out.println("Invalid replication degree.");
+                    }
+                } else {
+                    System.out.println("You can only backup individual files.");
+                }
+            } else {
+                System.out.println("The file doesn't exist. Check the path and try again.");
+            }
+        } catch (IOException e) {
+            // TODO Auto-generated catch block
+            e.printStackTrace();
+        }
+	    
 	}
 
 	private void process_directory(File directory, int replicationDegree) {
