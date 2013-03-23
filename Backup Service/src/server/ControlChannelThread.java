@@ -1,8 +1,10 @@
 package server;
 
+import java.io.File;
+import java.io.FileInputStream;
+import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.net.DatagramPacket;
-import java.net.InetAddress;
 import java.net.MulticastSocket;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -13,7 +15,9 @@ import java.util.Set;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
+import protocols.Body;
 import protocols.Header;
+import protocols.ProtocolMessage;
 import constantValues.Values;
 
 
@@ -211,6 +215,12 @@ public class ControlChannelThread extends ChannelThread{
 		}catch(InterruptedException e){
 			
 			e.printStackTrace();
+		} catch (FileNotFoundException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		} catch (IOException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
 		}
 	}
 	private void process_StoredMessage(Header message) throws InterruptedException{
@@ -233,14 +243,56 @@ public class ControlChannelThread extends ChannelThread{
 		}
 
 	}
-	private void process_GetChunkMessage(Header message){
+	private void process_GetChunkMessage(Header message) throws IOException, FileNotFoundException, InterruptedException{
 		
+		 File chunk = new File(Values.directory_to_backup_files+ "/" + message.getFileID() + "/chunk_" + message.getChunkNumber());
+		 
+		 byte[] chunkData = new byte[64000];
+		 FileInputStream input = new FileInputStream(chunk);
+		 
+		 int chunkSize = input.read(chunkData);
+		 
+		 if(chunkSize < 64000) {
+		        byte[] temp = new byte[chunkSize];
+		        System.arraycopy(chunkData, 0, temp, 0, chunkSize);
+		        chunkData = temp;
+		    }
 		
-		
-		
+		 String head = new String(Values.send_chunk_data_message_identifier +
+				 					Values.protocol_version +
+				 					message.getFileID() +
+				 					message.getChunkNumber());
+		 
+	
+		byte[] buf = ProtocolMessage.toBytes(head, chunkData);
+		DatagramPacket packet = new DatagramPacket(buf, buf.length, Values.multicast_restore_group_address, Values.multicast_restore_group_port);
+
+		// waiting between 0 and 400 miliseconds before sending response
+		int delay = Server.rand.nextInt(Values.restore_channel_send_chunk_delay+1);
+		Thread.sleep(delay);
+			
+		RestoreChannelThread.getMulticast_restore_socket().send(packet);
+		System.out.println(Thread.currentThread().getName() + " sent CHUNK message after processing GETCHUNK message");
+		 
 	}
 	private void process_DeleteMessage(Header message){
-		// TODO Auto-generated method stub
+		
+		
+		
+		 File file = new File(Values.directory_to_backup_files + "/" + message.getFileID());      	 
+		 String[] chunks;      
+
+		 if(file.isDirectory()){  
+			 chunks = file.list();  
+			 for (int i = 0; i < chunks.length; i++) {  
+				 File myFile = new File(file, chunks[i]);
+				 myFile.delete();
+			 }  
+		 }else{
+			 System.out.println("Received DELETE message but no files were found that matched the specified file.");
+			 //TODO
+		 }
+
 		
 	}
 	private void process_RemovedMessage(Header message){
