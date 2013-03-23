@@ -4,6 +4,7 @@ import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.net.DatagramPacket;
+import java.net.InetAddress;
 import java.net.MulticastSocket;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -56,7 +57,7 @@ public class BackupChannelThread extends ChannelThread {
 		        if(!Server.fromThisMachine(datagram.getAddress())){
 		            byte[] temp = new byte[datagram.getLength()];
 		            System.arraycopy(datagram.getData(), 0, temp, 0, datagram.getLength());
-		            incomingRequestsPool.execute(new RequestWorker(temp));
+		            incomingRequestsPool.execute(new RequestWorker(temp,datagram.getAddress()));
 		        }
 		    }catch(IOException e){
 		        e.printStackTrace();
@@ -64,7 +65,7 @@ public class BackupChannelThread extends ChannelThread {
 		}
 	}
 	
-	protected void processRequest(String request) {
+	protected void processRequest(String request, InetAddress src) {
 
 	    int endOfHeaderIndex;
 	    if((endOfHeaderIndex = request.indexOf("\r\n\r\n")) != -1) { // find the end of the header
@@ -73,11 +74,20 @@ public class BackupChannelThread extends ChannelThread {
 	        System.out.println("\n\n------------------------Received backup request------------------------\n");
 	        String[] fields = requestHeader.split(" ");
 
-	        if(requestHeader.matches(headerPattern)) {	        	
+	        if(requestHeader.matches(headerPattern)) {
+
+	            try {
+	                // waiting between 200 and 400 miliseconds before deciding if it will save the chunk
+	                int delay = Server.rand.nextInt(201)+200;
+	                Thread.sleep(delay);
+	            } catch (InterruptedException e1) {
+	                e1.printStackTrace();
+                }
+
 	            if(getServer().getControl_thread().getNumberOfBackupsFromChunkNo(fields[2], Integer.parseInt(fields[3])) 
 	                    < Integer.parseInt(fields[4])){ //checks if this chunk has a ready been stored the number of desired times
 	            	
-	            	this.getServer().getControl_thread().incrementBackupNumberOfChunk(fields[2], Integer.parseInt(fields[3]));
+	            	this.getServer().getControl_thread().incrementReplicationOfOtherChunk(fields[2], Integer.parseInt(fields[3]));
 	            	
 	                String data = request.substring(endOfHeaderIndex+4);
 	                String fileSeparator = System.getProperty("file.separator");

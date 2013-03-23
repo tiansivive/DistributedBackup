@@ -5,7 +5,9 @@ import java.io.FileInputStream;
 import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.net.DatagramPacket;
+import java.net.InetAddress;
 import java.net.MulticastSocket;
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Iterator;
@@ -37,13 +39,14 @@ public class ControlChannelThread extends ChannelThread{
 	 * Allows this machine to know if the other ones on the network have stored all chunks as well as an adequate number of replicas
 	 * 
 	 */
-	private HashMap<String, Map<Integer, ReplicationInfo> > requestedBackups;
+	private HashMap<String, Map<Integer,ReplicationInfo> > ourRequestedBackups;
 	
 	/**
 	 * The number of replicated chunks of a given file from another machine's backup request that have been stored in other machines.
 	 * 
 	 */
-	private HashMap<String, Map<Integer, Integer> > numberOfBackupsPerChunk; //map<ChunkNo,numOfBackups>
+	private HashMap<String,Map<Integer,Integer> > replicationDegreeOfOthersChunks; //map<ChunkNo,numOfBackups>
+	private HashMap<InetAddress,Map<String,ArrayList<Integer>>> storedMessagesReceived;
 	
 	private HashSet<String> completelyBackedUpFiles; 
 	private Thread backupRequestsCompletion_Supervisor;
@@ -126,10 +129,11 @@ public class ControlChannelThread extends ChannelThread{
 	}
 
  	private ControlChannelThread(){
-		this.setName("ControlThread");
-		this.completelyBackedUpFiles = new HashSet<String>();
-		this.numberOfBackupsPerChunk = new HashMap<String, Map<Integer, Integer> >();
-		this.requestedBackups = new HashMap<String, Map<Integer, ReplicationInfo> >();
+		setName("ControlThread");
+		completelyBackedUpFiles = new HashSet<String>();
+		replicationDegreeOfOthersChunks = new HashMap<String, Map<Integer,Integer>>();
+		storedMessagesReceived = new HashMap<InetAddress,Map<String,ArrayList<Integer>>>();
+		ourRequestedBackups = new HashMap<String, Map<Integer, ReplicationInfo> >();
 		
 		this.initializeBackgroundMaintenanceProcesses();
 	}
@@ -154,7 +158,7 @@ public class ControlChannelThread extends ChannelThread{
 			    if(!Server.fromThisMachine(datagram.getAddress())){
 			        byte[] temp = new byte[datagram.getLength()];
                     System.arraycopy(datagram.getData(), 0, temp, 0, datagram.getLength());
-			        this.incomingRequestsPool.execute(new RequestWorker(temp));
+			        this.incomingRequestsPool.execute(new RequestWorker(temp,datagram.getAddress()));
 			    }
 			}catch(IOException e){
 				// TODO Auto-generated catch block
@@ -164,7 +168,7 @@ public class ControlChannelThread extends ChannelThread{
 	}
 
 	
-	protected void processRequest(String msg){
+	protected void processRequest(String msg, InetAddress src){
 
 	    System.out.println("Control Channel - Message received: " + msg);
         int endOfHeaderIndex;
@@ -180,7 +184,7 @@ public class ControlChannelThread extends ChannelThread{
                     switch(message.getMessageType()){
                     case "STORED":
                     {
-                        process_StoredMessage(message);
+                        process_StoredMessage(message,src);
                         break;
                     }
                     case "GETCHUNK":
@@ -214,29 +218,60 @@ public class ControlChannelThread extends ChannelThread{
             System.out.println("No <CRLF><CRLF> detected. Ignoring request");
         }
 	}
-	
-	private void process_StoredMessage(Header message) throws InterruptedException{
-		
-	    /*
-		synchronized(storedMessagesInformation_Cleaner){
-			this.storedMessagesInformation_Cleaner.notifyAll();
-		}
-		*/
-		Thread.sleep(50); //wakes up the Cleaner, waits that it changes it's own readyToWork status to true and then changes it to false
-		//this.storedMessagesInformation_Cleaner.setReadyToWork(false);
-		
-		if(!this.requestedBackups.containsKey(message.getFileID())){
-			incrementBackupNumberOfChunk(message.getFileID(), message.getChunkNumber());
-			System.out.println(Thread.currentThread().getName() + " received someone else's STORED message");
-		}else{
-			this.incrementCurrentReplicationOfChunk(message.getFileID(), message.getChunkNumber());	
-			System.out.println(Thread.currentThread().getName() + " received confirmation that a replica has been backed up");
-		}
+
+	private void process_StoredMessage(Header message, InetAddress src) throws InterruptedException{
+	    String fileId = message.getFileID();
+	    int chunkNum = message.getChunkNumber();
+	    boolean itMustIncrement = false;
+
+	    synchronized (storedMessagesReceived) {
+            if(storedMessagesReceived.containsKey(src)) { // already received a store message from this src
+                Map<String,ArrayList<Integer>> filesInfo = storedMessagesReceived.get(src);
+
+                if(filesInfo.containsKey(fileId)) { // already received a store message about this file
+                    ArrayList<Integer> chunksInfo = filesInfo.get(fileId);
+
+                    if(!chunksInfo.contains(chunkNum)) { // first stored from this src about this chunk
+                        chunksInfo.add(chunkNum);
+                        itMustIncrement = true;
+                        System.out.println(src.toString()+" RECEIVED FIRST STORED ABOUT NEW CHUNK");
+                    }
+
+                } else {
+                    ArrayList<Integer> chunksInfo = new ArrayList<Integer>();
+                    chunksInfo.add(chunkNum);
+                    filesInfo.put(fileId, chunksInfo);
+                    itMustIncrement = true;
+                    System.out.println(src.toString()+" RECEIVED FIRST STORED ABOUT NEW FILE");
+                }
+            } else {
+                Map<String,ArrayList<Integer>> filesInfo = new HashMap<String,ArrayList<Integer>>();
+                ArrayList<Integer> chunksInfo = new ArrayList<Integer>();
+                chunksInfo.add(chunkNum);
+                filesInfo.put(fileId, chunksInfo);
+                itMustIncrement = true;
+                System.out.println(src.toString()+" RECEIVED FIRST STORED FROM PEER");
+            }
+	    }
+
+	    synchronized (ourRequestedBackups) {
+	        if(ourRequestedBackups.containsKey(fileId)) { // it's a message about our backups
+	            if(itMustIncrement) {
+	                incrementReplicationOfOurChunk(fileId, chunkNum);
+	                System.out.println(src.toString()+" RECEIVED CONFIRMATION OF STORED FILE "+fileId+" CHUNK "+chunkNum);
+	            }
+	        } else { // someone else's backup
+	            if(itMustIncrement) {
+	                incrementReplicationOfOtherChunk(fileId, chunkNum);
+	                System.out.println(src.toString()+" RECEIVED STORED OF OTHER");
+	            }
+	        }
+	    }
 	}
 
-	
+
 	private void process_GetChunkMessage(Header message) throws IOException, FileNotFoundException, InterruptedException{
-		
+
 	    File chunk = new File(Values.directory_to_backup_files+ "/" + message.getFileID() + "/chunk_" + message.getChunkNumber());
 
 	    if(chunk.exists()) {
@@ -304,41 +339,20 @@ public class ControlChannelThread extends ChannelThread{
 	}
 	
 	
-	public synchronized void updateRequestedBackups(Header info){
+	public void updateRequestedBackups(Header info){
 		
 	    ReplicationInfo status = new ReplicationInfo(info.getReplicationDegree(), 0);
 	    
-	    if(requestedBackups.containsKey(info.getFileID())) {
-	        Map<Integer,ReplicationInfo> chunksInfo = requestedBackups.get(info.getFileID());
-	        chunksInfo.put(info.getChunkNumber(), status);
-	    } else {
-	        Map<Integer, ReplicationInfo> chunksInfo = new HashMap<Integer,ReplicationInfo>();
-	        chunksInfo.put(info.getChunkNumber(), status);
-	        requestedBackups.put(info.getFileID(), chunksInfo);
-	    }
-	    
-	    /*
-		ReplicationInfo status = new ReplicationInfo(info.getReplicationDegree(), 0);
-		Map<Integer, ReplicationInfo> chunkInfo = new HashMap<Integer, ReplicationInfo>();
-		chunkInfo.put(info.getChunkNumber(), status);
-		
-		if(!this.requestedBackups.containsKey(info.getFileID())){
-			
-			this.requestedBackups.put(info.getFileID(), chunkInfo);
-			//synchronized(this.backupRequestsCompletion_Supervisor){		
-				//this.backupRequestsCompletion_Supervisor.notifyAll();
-			//}
-		}else{
-			
-			if(!this.getChunksFromFile(info.getFileID()).containsKey(info.getChunkNumber())){
-				
-				this.getChunksFromFile(info.getFileID()).put(info.getChunkNumber(), status);
-			}else{
-				//TODO se ja tiver sido feito o pedido de backup deste chunk, acontece o que?
-				//this.requestedBackups.get(info.getFileID()).get(info.getChunkNumber()).setDesiredReplication(info.getReplicationDegree());
-			}
-		}
-		*/
+	    synchronized (ourRequestedBackups) {
+	        if(ourRequestedBackups.containsKey(info.getFileID())) {
+	            Map<Integer,ReplicationInfo> chunksInfo = ourRequestedBackups.get(info.getFileID());
+	            chunksInfo.put(info.getChunkNumber(), status);
+	        } else {
+	            Map<Integer, ReplicationInfo> chunksInfo = new HashMap<Integer,ReplicationInfo>();
+	            chunksInfo.put(info.getChunkNumber(), status);
+	            ourRequestedBackups.put(info.getFileID(), chunksInfo);
+	        }
+        }
 	}
 	
 	/**
@@ -347,30 +361,28 @@ public class ControlChannelThread extends ChannelThread{
 	 * @param file
 	 * @param chunkNo
 	 */
-	public synchronized void incrementBackupNumberOfChunk(String file, int chunkNo){
+	public void incrementReplicationOfOtherChunk(String fileId, int chunkNo){
 		
-		int currentNumber = 0;	
-		Map<Integer, Integer> tmp = null;
-		
-		
-		if(this.numberOfBackupsPerChunk.containsKey(file)){ //Checks if the file is already in the Map as a key
-			if(this.numberOfBackupsPerChunk.get(file).containsKey(chunkNo)){ //Checks if, for this file, this particular chunk already has some replicas
-				currentNumber = this.numberOfBackupsPerChunk.get(file).get(chunkNo);
-				currentNumber++;
-				System.out.println("\n------------------------------\n"
-									+"INCREMENTING BACKUP REPLICAS OF CHUNK " + chunkNo + " TO: " + currentNumber
-									+"\n------------------------------\n");
-			}else{
-				currentNumber = 1;//In this case this particular chunk has never been backed up so this is its first replica
-			}
-		}else{
-			tmp = new HashMap<Integer, Integer>();
-			currentNumber = 1; //Here it's the first chunk being backed up for this particular file so, again, it's the first replica
-			this.numberOfBackupsPerChunk.put(file, tmp);//Stores this file as a key with the mapped value being empty
-		}
-		
-		this.numberOfBackupsPerChunk.get(file).put(chunkNo, currentNumber);//updates the number of replicas of said chunk
-		
+	    synchronized (replicationDegreeOfOthersChunks) {
+	        Map<Integer,Integer> chunksInfo = replicationDegreeOfOthersChunks.get(fileId);
+
+	        if(chunksInfo != null) {
+	            Integer currentDegree = chunksInfo.get(chunkNo);
+	            if(currentDegree != null) {
+	                currentDegree += 1;
+	                System.out.println("FILE EXISTS - CHUNK WITH REPLICATION "+currentDegree);
+	            } else {
+	                chunksInfo.put(chunkNo, 1);
+	                System.out.println("FILE EXISTS - CHUNK WITH REPLICATION 1");
+	            }
+	        }
+	        else {
+	            chunksInfo = new HashMap<Integer,Integer>();
+	            chunksInfo.put(chunkNo, 1);
+	            replicationDegreeOfOthersChunks.put(fileId, chunksInfo);
+	            System.out.println("NEW FILE - CHUNK WITH REPLICATION 1");
+	        }
+	    }
 	}
 	/**
 	 * Increments a chunk's replicationStatus from one of this machine's backup requests
@@ -378,11 +390,12 @@ public class ControlChannelThread extends ChannelThread{
 	 * @param file
 	 * @param chunkNo
 	 */
-	public synchronized void incrementCurrentReplicationOfChunk(String file, int chunkNo){
-		
-		this.getChunkReplicationInfo(chunkNo, file).incrementCurrentReplication();
+	public void incrementReplicationOfOurChunk(String fileId, int chunkNum){
+	    synchronized (ourRequestedBackups) {
+	        ourRequestedBackups.get(fileId).get(chunkNum).incrementCurrentReplication();
+	        System.out.println("INCREMENTING REPLICATION OF OUR FILE "+fileId+" CHUNK "+chunkNum);
+        }
 	}
-	
 	
 	public void notifyDaemonSupervisor() {	
 		synchronized(backupRequestsCompletion_Supervisor){
@@ -404,7 +417,7 @@ public class ControlChannelThread extends ChannelThread{
 						
 				try {
 				    while(true){
-				        if(requestedBackups.isEmpty()){
+				        if(ourRequestedBackups.isEmpty()){
 				            System.out.println(this.getName() + " is going to wait...");
 				            wait();
 				        } else {
@@ -417,7 +430,7 @@ public class ControlChannelThread extends ChannelThread{
 				                delay = delay*2;
 				            } else {
 				                synchronized(getServer().getControl_thread()){
-				                    requestedBackups.clear();
+				                    ourRequestedBackups.clear();
 				                }
 				                delay = 500;
 				            }
@@ -434,40 +447,24 @@ public class ControlChannelThread extends ChannelThread{
 				
 				while(filesIterator.hasNext()){
 					
-					String fileID = (String) filesIterator.next();
+					String fileId = (String) filesIterator.next();
 					
-					Iterator<Integer> chunksIterator = chunksWithMissingReplicas.get(fileID).iterator();
+					Iterator<Integer> chunksIterator = chunksWithMissingReplicas.get(fileId).iterator();
 					while(chunksIterator.hasNext()){
 						
 						int chunkNumber = (Integer) chunksIterator.next();	
-						synchronized (getServer().getControl_thread()) {
-                            if(getChunkReplicationInfo(chunkNumber, fileID).canResendChunk()) {
-                                getServer().send_file(fileID, Integer.toString(chunkNumber));
-                                getChunkReplicationInfo(chunkNumber, fileID).decrementNumberOfAttempts();
+						synchronized (ourRequestedBackups) {
+						    
+                            if(ourRequestedBackups.get(fileId).get(chunkNumber).canResendChunk()) {
+                                getServer().send_file(fileId, Integer.toString(chunkNumber));
+                                ourRequestedBackups.get(fileId).get(chunkNumber).decrementNumberOfAttempts();
                             } else {
-                                System.out.println("UNABLE TO REPLICATE CHUNK " + chunkNumber + " OF FILE " + fileID+" WITH DESIRED DEGREE");
-                                requestedBackups.get(fileID).remove(chunkNumber);
+                                System.out.println("UNABLE TO REPLICATE CHUNK " + chunkNumber + " OF FILE " + fileId+" WITH DESIRED DEGREE");
+                                ourRequestedBackups.get(fileId).remove(chunkNumber);
                                 chunksIterator.remove();
                                 delay = 500;
                             }
                         }
-						
-						/*
-						synchronized(getServer().getControl_thread()){
-							//Sending chunk again, going to count number of STORED messages again
-							getChunkReplicationInfo(chunkNumber, fileID).setCurrentReplication(0);
-						}
-						if(getChunkReplicationInfo(chunkNumber, fileID).canResendChunk()){
-							getServer().send_file(fileID, Integer.toString(chunkNumber));
-							getChunkReplicationInfo(chunkNumber, fileID).decrementNumberOfAttempts();
-						}else{
-							
-							System.out.println("Unable to fully backup chunk " + chunkNumber + " of " + fileID);
-							requestedBackups.get(fileID).remove(chunkNumber);
-							chunksIterator.remove();
-							delay = 500; //If a chunk hasn't been fully backed up and requestedBackups isn't empty then a second Backup request has been made, so we reset the delay
-						}
-						*/
 					}		
 				}		
 			}
@@ -477,11 +474,11 @@ public class ControlChannelThread extends ChannelThread{
 				Iterator<String> filesIterator;
 
 				synchronized(getServer().getControl_thread()){
-				    filesIterator = requestedBackups.keySet().iterator();
+				    filesIterator = ourRequestedBackups.keySet().iterator();
 				    while(filesIterator.hasNext()){
 
 				        String fileID = (String) filesIterator.next();
-				        Iterator<Entry<Integer, ReplicationInfo>> chunksIterator = requestedBackups.get(fileID).entrySet().iterator();
+				        Iterator<Entry<Integer, ReplicationInfo>> chunksIterator = ourRequestedBackups.get(fileID).entrySet().iterator();
 				        Set<Integer> chunksWithoutDesiredReplication = new HashSet<Integer>();
 				        
 				        while(chunksIterator.hasNext()){
@@ -595,37 +592,34 @@ public class ControlChannelThread extends ChannelThread{
 		ControlChannelThread.multicast_control_socket = multicast_control_socket;
 	}
 	
-	public synchronized int getNumberOfBackupsFromChunkNo(String file, int chunkNum){
-		try{
-			return this.numberOfBackupsPerChunk.get(file).get(chunkNum);
-		}catch(NullPointerException e){	
-			return -1;
-		}
-	}
-	public synchronized HashMap<String, Map<Integer, Integer> > getNumberOfBackupsPerChunk(){
-		return numberOfBackupsPerChunk;
-	}
-	public synchronized void setNumberOfBackupsPerChunk(
-			HashMap<String, Map<Integer, Integer> > numberOfBackupsPerChunk) {
-		this.numberOfBackupsPerChunk = numberOfBackupsPerChunk;
-	}
 	public synchronized Map<Integer, ReplicationInfo> getChunksFromFile(String file){
-		return this.requestedBackups.get(file);
+		return this.ourRequestedBackups.get(file);
 	}
-	public synchronized ReplicationInfo getChunkReplicationInfo(int chunk, String file){	
-		return this.requestedBackups.get(file).get(chunk);
-	}
+	
+	public int getNumberOfBackupsFromChunkNo(String file, int chunkNum){
+	    synchronized (replicationDegreeOfOthersChunks) {
+	        try{
+	            return replicationDegreeOfOthersChunks.get(file).get(chunkNum);
+	        }catch(NullPointerException e){ 
+	            return 0;
+	        }
+	    }
+}
+	
 	public synchronized int getChunkDesiredReplication(int chunk, String file){		
-		return this.requestedBackups.get(file).get(chunk).getDesiredReplication();	
+		return this.ourRequestedBackups.get(file).get(chunk).getDesiredReplication();	
 	}
+	
 	public synchronized int getChunkCurrentReplicationStatus(int chunk, String file){		
-		return this.requestedBackups.get(file).get(chunk).getCurrentReplication();	
+		return this.ourRequestedBackups.get(file).get(chunk).getCurrentReplication();	
 	}
+	
 	public synchronized HashMap<String, Map<Integer, ReplicationInfo>> getRequestedBackups() {
-		return requestedBackups;
+		return ourRequestedBackups;
 	}
+	
 	public synchronized void setRequestedBackups(HashMap<String, Map<Integer, ReplicationInfo>> RequestedBackups) {
-		this.requestedBackups = RequestedBackups;
+		this.ourRequestedBackups = RequestedBackups;
 	}
 
 	

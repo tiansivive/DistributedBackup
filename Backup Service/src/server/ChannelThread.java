@@ -1,5 +1,6 @@
 package server;
 
+import java.net.InetAddress;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
@@ -21,16 +22,18 @@ public abstract class ChannelThread extends Thread{
     protected class RequestWorker implements Runnable{
 
         private final byte[] request;
-        public RequestWorker(byte[] request) {
+        private final InetAddress src;
+        public RequestWorker(byte[] request, InetAddress src) {
             this.request = request;
+            this.src = src;
         }
         @Override
         public void run() {
-            processRequest(new String(request));
+            processRequest(new String(request),src);
         }
     }
 
-    protected abstract void processRequest(String request);
+    protected abstract void processRequest(String request,InetAddress src);
     
     public Server getServer(){
 		return server;

@@ -2,6 +2,7 @@ package server;
 
 import java.io.IOException;
 import java.net.DatagramPacket;
+import java.net.InetAddress;
 import java.net.MulticastSocket;
 import java.util.HashMap;
 
@@ -42,7 +43,7 @@ public class RestoreChannelThread extends ChannelThread{
                 if(!Server.fromThisMachine(datagram.getAddress())){
                     byte[] temp = new byte[datagram.getLength()];
                     System.arraycopy(datagram.getData(), 0, temp, 0, datagram.getLength());
-                    incomingRequestsPool.execute(new RequestWorker(temp));
+                    incomingRequestsPool.execute(new RequestWorker(temp,datagram.getAddress()));
                 }
             }catch(IOException e){
                 e.printStackTrace();
@@ -51,7 +52,7 @@ public class RestoreChannelThread extends ChannelThread{
 	}
 
 	@Override
-	protected void processRequest(String request) {
+	protected void processRequest(String request, InetAddress src) {
 	    int endOfHeaderIndex;
 	    if((endOfHeaderIndex = request.indexOf("\r\n\r\n")) != -1) { // find the end of the header
 	        String requestHeader = request.substring(0, endOfHeaderIndex);
