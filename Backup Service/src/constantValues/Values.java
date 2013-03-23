@@ -29,6 +29,7 @@ public class Values{
 	
 	public static final int server_sending_packets_delay = 100;
 	public static final int backup_thread_response_delay = 400;
+	public static final int restore_channel_send_chunk_delay = 400;
 	
 	public static final int number_of_attempts_to_resend_chunks = 5;
 	

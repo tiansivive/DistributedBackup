@@ -56,6 +56,7 @@ public class Header{
 		this.version = v;
 		this.fileID = id;
 		this.chunkNumber = chunkNo;
+		this.replicationDegree = -1;
 	}
 	
 	public Header(String type, String v, String id, int chunkNo, int replicaDegree){
