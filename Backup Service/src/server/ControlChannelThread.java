@@ -47,8 +47,9 @@ public class ControlChannelThread extends ChannelThread{
 	
 	private HashSet<String> completelyBackedUpFiles; 
 	private Thread backupRequestsCompletion_Supervisor;
-	private CleanerThread storedMessagesInformation_Cleaner;
+	//private CleanerThread storedMessagesInformation_Cleaner;
 	
+	/*
 	private class CleanerThread extends Thread{
 		
 		protected boolean readyToWork;
@@ -67,6 +68,7 @@ public class ControlChannelThread extends ChannelThread{
 			// TODO Auto-generated method stub
 		}
 	}
+	*/
 	
 	private class ReplicationInfo{
 		
@@ -215,11 +217,14 @@ public class ControlChannelThread extends ChannelThread{
 	
 	private void process_StoredMessage(Header message) throws InterruptedException{
 		
+	    /*
 		synchronized(storedMessagesInformation_Cleaner){
 			this.storedMessagesInformation_Cleaner.notifyAll();
 		}
+		*/
 		Thread.sleep(50); //wakes up the Cleaner, waits that it changes it's own readyToWork status to true and then changes it to false
-		this.storedMessagesInformation_Cleaner.setReadyToWork(false);
+		//this.storedMessagesInformation_Cleaner.setReadyToWork(false);
+		
 		if(!this.requestedBackups.containsKey(message.getFileID())){
 			incrementBackupNumberOfChunk(message.getFileID(), message.getChunkNumber());
 			System.out.println(Thread.currentThread().getName() + " received someone else's STORED message");
@@ -301,6 +306,18 @@ public class ControlChannelThread extends ChannelThread{
 	
 	public synchronized void updateRequestedBackups(Header info){
 		
+	    ReplicationInfo status = new ReplicationInfo(info.getReplicationDegree(), 0);
+	    
+	    if(requestedBackups.containsKey(info.getFileID())) {
+	        Map<Integer,ReplicationInfo> chunksInfo = requestedBackups.get(info.getFileID());
+	        chunksInfo.put(info.getChunkNumber(), status);
+	    } else {
+	        Map<Integer, ReplicationInfo> chunksInfo = new HashMap<Integer,ReplicationInfo>();
+	        chunksInfo.put(info.getChunkNumber(), status);
+	        requestedBackups.put(info.getFileID(), chunksInfo);
+	    }
+	    
+	    /*
 		ReplicationInfo status = new ReplicationInfo(info.getReplicationDegree(), 0);
 		Map<Integer, ReplicationInfo> chunkInfo = new HashMap<Integer, ReplicationInfo>();
 		chunkInfo.put(info.getChunkNumber(), status);
@@ -308,9 +325,9 @@ public class ControlChannelThread extends ChannelThread{
 		if(!this.requestedBackups.containsKey(info.getFileID())){
 			
 			this.requestedBackups.put(info.getFileID(), chunkInfo);
-			/*synchronized(this.backupRequestsCompletion_Supervisor){		
-				this.backupRequestsCompletion_Supervisor.notifyAll();
-			}*/
+			//synchronized(this.backupRequestsCompletion_Supervisor){		
+				//this.backupRequestsCompletion_Supervisor.notifyAll();
+			//}
 		}else{
 			
 			if(!this.getChunksFromFile(info.getFileID()).containsKey(info.getChunkNumber())){
@@ -321,7 +338,7 @@ public class ControlChannelThread extends ChannelThread{
 				//this.requestedBackups.get(info.getFileID()).get(info.getChunkNumber()).setDesiredReplication(info.getReplicationDegree());
 			}
 		}
-		
+		*/
 	}
 	
 	/**
@@ -365,37 +382,7 @@ public class ControlChannelThread extends ChannelThread{
 		
 		this.getChunkReplicationInfo(chunkNo, file).incrementCurrentReplication();
 	}
-	/**
-	 * 
-	 * Resets a chunk's number of replicas to 0, after receiving a PUTCHUNK, in order to properly count new in-bound STORED messages
-	 * 
-	 * @param file
-	 * @param chunkNo
-	 */
-	public synchronized boolean resetChunkReplicationStatus(String file, String chunkNo){
-			
-		int currentNumber = 0; //Resetting replicas to 0
-		Map<Integer, Integer> tmp = null;
-			
-		if(!this.numberOfBackupsPerChunk.containsKey(file)){ //Checks if the file is already in the Map as a key	
-			
-			tmp = new HashMap<Integer, Integer>();
-			this.numberOfBackupsPerChunk.put(file, tmp);//Stores this file as a key with the mapped value being empty
-		}else{
-			System.out.println("FILE EXISTS, CHECKING IF CHUNK EXISTS");
-			if(this.numberOfBackupsPerChunk.get(file).containsKey(Integer.parseInt(chunkNo))){
-				
-				System.out.println("CHUNK EXISTS");
-				if(this.numberOfBackupsPerChunk.get(file).get(Integer.parseInt(chunkNo)) == 0){
-					System.out.println("REPLICATION ALREADY 0, WAITING.....");
-					return false;
-				}	
-			}		
-		}
-		System.out.println("RESETTING FROM " + this.numberOfBackupsPerChunk.get(file).get(Integer.parseInt(chunkNo)) + " TO 0");
-		this.numberOfBackupsPerChunk.get(file).put(Integer.parseInt(chunkNo), currentNumber);//updates the number of replicas of said chunk
-		return true;
-	}
+	
 	
 	public void notifyDaemonSupervisor() {	
 		synchronized(backupRequestsCompletion_Supervisor){
@@ -416,40 +403,27 @@ public class ControlChannelThread extends ChannelThread{
 				chunksWithMissingReplicas = new HashMap<String, Set<Integer>>();
 						
 				try {
-					while(true){
-						
-						if(requestedBackups.isEmpty()){
-							synchronized(this){
-								System.out.println(this.getName() + " is going to wait...");
-								this.wait();
-								Thread.sleep(5000);// Wait 5 seconds to start re-sending chunks
-								System.out.println(this.getName() + " has waken up...");
-								continue;
-							}
-						}
-						System.out.println(this.getName() + " REQUESTED BACKUPS IS NOT EMPTY. WE STILL DON'T HAVE ALL FILES WITH OUR DESIRED REPLICATION DEGREE");
-						synchronized(this){
-							this.wait(delay);
-						}
-						this.checkCompletionOfBackupRequests();
-						
-						if(!chunksWithMissingReplicas.isEmpty()){
-							requestMissingReplicas();
-							delay = delay*2;
-						}else{
-							
-							synchronized(getServer().getControl_thread()){
-								requestedBackups.clear();
-							}
-							delay = 500;
-						}
-						
-						
-					}			
+				    while(true){
+				        if(requestedBackups.isEmpty()){
+				            System.out.println(this.getName() + " is going to wait...");
+				            wait();
+				        } else {
+				            System.out.println(this.getName() + " REQUESTED BACKUPS IS NOT EMPTY. WE STILL DON'T HAVE ALL FILES WITH OUR DESIRED REPLICATION DEGREE");
+				            wait(delay);
+				            checkCompletionOfBackupRequests();
+
+				            if(!chunksWithMissingReplicas.isEmpty()) {
+				                requestMissingReplicas();
+				                delay = delay*2;
+				            } else {
+				                synchronized(getServer().getControl_thread()){
+				                    requestedBackups.clear();
+				                }
+				                delay = 500;
+				            }
+				        }
+				    }			
 				}catch (InterruptedException e){
-					
-					
-					// TODO Auto-generated catch block
 					e.printStackTrace();
 				}
 			}
@@ -465,7 +439,20 @@ public class ControlChannelThread extends ChannelThread{
 					Iterator<Integer> chunksIterator = chunksWithMissingReplicas.get(fileID).iterator();
 					while(chunksIterator.hasNext()){
 						
-						int chunkNumber = (Integer) chunksIterator.next();			
+						int chunkNumber = (Integer) chunksIterator.next();	
+						synchronized (getServer().getControl_thread()) {
+                            if(getChunkReplicationInfo(chunkNumber, fileID).canResendChunk()) {
+                                getServer().send_file(fileID, Integer.toString(chunkNumber));
+                                getChunkReplicationInfo(chunkNumber, fileID).decrementNumberOfAttempts();
+                            } else {
+                                System.out.println("UNABLE TO REPLICATE CHUNK " + chunkNumber + " OF FILE " + fileID+" WITH DESIRED DEGREE");
+                                requestedBackups.get(fileID).remove(chunkNumber);
+                                chunksIterator.remove();
+                                delay = 500;
+                            }
+                        }
+						
+						/*
 						synchronized(getServer().getControl_thread()){
 							//Sending chunk again, going to count number of STORED messages again
 							getChunkReplicationInfo(chunkNumber, fileID).setCurrentReplication(0);
@@ -480,6 +467,7 @@ public class ControlChannelThread extends ChannelThread{
 							chunksIterator.remove();
 							delay = 500; //If a chunk hasn't been fully backed up and requestedBackups isn't empty then a second Backup request has been made, so we reset the delay
 						}
+						*/
 					}		
 				}		
 			}
@@ -487,53 +475,50 @@ public class ControlChannelThread extends ChannelThread{
 			private void checkCompletionOfBackupRequests(){
 				
 				Iterator<String> filesIterator;
-				
+
 				synchronized(getServer().getControl_thread()){
-					filesIterator = requestedBackups.keySet().iterator();
+				    filesIterator = requestedBackups.keySet().iterator();
+				    while(filesIterator.hasNext()){
+
+				        String fileID = (String) filesIterator.next();
+				        Iterator<Entry<Integer, ReplicationInfo>> chunksIterator = requestedBackups.get(fileID).entrySet().iterator();
+				        Set<Integer> chunksWithoutDesiredReplication = new HashSet<Integer>();
+				        
+				        while(chunksIterator.hasNext()){
+
+				            Map.Entry<Integer, ReplicationInfo> pair = (Entry<Integer, ReplicationInfo>) chunksIterator.next();
+
+				            if(!pair.getValue().hasReachedDesiredReplication()){
+				                chunksWithoutDesiredReplication.add(pair.getKey());
+				                System.out.println("\n----------------------------------------------------------\n" 
+				                        + this.getName() + " says in Chunk number "
+				                        + pair.getKey() + ":\nDesired replication: "
+				                        + pair.getValue().getDesiredReplication()
+				                        + "\nCurrent replication: " + pair.getValue().getCurrentReplication()
+				                        + "\nHasn't reached desired replication\n-------------------------------\n");
+
+				            }else{
+				                System.out.println("\n----------------------------------------------------------\n" 
+				                        + this.getName() + " says in Chunk number "
+				                        + pair.getKey() + ":\nDesired replication: "
+				                        + pair.getValue().getDesiredReplication()
+				                        + "\nCurrent replication: " + pair.getValue().getCurrentReplication()
+				                        + "\nHas reached desired replication\n-------------------------------\n");
+				                //TODO does nothing for now, 
+				                //CANNOT remove chunks from the requestBackups Hashmap as if a stored message is then received then it'll reset that chunk's currentReplication status to 0
+				            }
+				        }
+
+				        if(chunksWithoutDesiredReplication.isEmpty()){
+				            completelyBackedUpFiles.add(fileID);
+				            filesIterator.remove();
+				            chunksWithMissingReplicas.remove(fileID);
+				        }else{
+				            chunksWithMissingReplicas.put(fileID, chunksWithoutDesiredReplication);
+				        }
+				    }
 				}
-				while(filesIterator.hasNext()){
-
-					String fileID = (String) filesIterator.next();
-					Iterator<Entry<Integer, ReplicationInfo>> chunksIterator = requestedBackups.get(fileID).entrySet().iterator();
-					Set<Integer> chunksWithoutDesiredReplication = new HashSet<Integer>();
-					while(chunksIterator.hasNext()){
-
-						Map.Entry<Integer, ReplicationInfo> pair = (Entry<Integer, ReplicationInfo>) chunksIterator.next();
-						
-						if(!pair.getValue().hasReachedDesiredReplication()){
-							chunksWithoutDesiredReplication.add(pair.getKey());
-							System.out.println("\n----------------------------------------------------------\n" 
-												+ this.getName() + " says in Chunk number "
-												+ pair.getKey() + ":\nDesired replication: "
-												+ pair.getValue().getDesiredReplication()
-												+ "\nCurrent replication: " + pair.getValue().getCurrentReplication()
-												+ "\nHasn't reached desired replication\n-------------------------------\n");
-							
-						}else{
-							System.out.println("\n----------------------------------------------------------\n" 
-									+ this.getName() + " says in Chunk number "
-									+ pair.getKey() + ":\nDesired replication: "
-									+ pair.getValue().getDesiredReplication()
-									+ "\nCurrent replication: " + pair.getValue().getCurrentReplication()
-									+ "\nHas reached desired replication\n-------------------------------\n");
-							//TODO does nothing for now, 
-							//CANNOT remove chunks from the requestBackups Hashmap as if a stored message is then received then it'll reset that chunk's currentReplication status to 0
-						}
-					}
-
-					if(chunksWithoutDesiredReplication.isEmpty()){
-						completelyBackedUpFiles.add(fileID);
-						synchronized(getServer().getControl_thread()){
-							filesIterator.remove();
-						}
-						chunksWithMissingReplicas.remove(fileID);
-					}else{
-						chunksWithMissingReplicas.put(fileID, chunksWithoutDesiredReplication);
-					}
-
-				}	
 			}
-
 		};
 		
 		backupRequestsCompletion_Supervisor.setName("SupervisorDaemonThread");
@@ -541,7 +526,7 @@ public class ControlChannelThread extends ChannelThread{
 		backupRequestsCompletion_Supervisor.start();
 				
 		
-		storedMessagesInformation_Cleaner = new CleanerThread(){
+		/*storedMessagesInformation_Cleaner = new CleanerThread(){
 	
 			public void run(){
 				
@@ -578,6 +563,7 @@ public class ControlChannelThread extends ChannelThread{
 		storedMessagesInformation_Cleaner.setName("CleanerDaemonThread");
 		storedMessagesInformation_Cleaner.setDaemon(true);
 		storedMessagesInformation_Cleaner.start();
+		*/
 	}
 	
 	

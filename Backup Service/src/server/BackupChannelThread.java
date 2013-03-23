@@ -73,25 +73,6 @@ public class BackupChannelThread extends ChannelThread {
 	        System.out.println("\n\n------------------------Received backup request------------------------\n");
 	        String[] fields = requestHeader.split(" ");
 
-	        
-	    	//With each new PUTCHUNK, the information about the received chunk's replicas on the controlThread is reset to 0
-	        //This way, while this thread is waiting, the controlThread will update the chunk's replication status accordingly
-	        try {	
-	        	//If reset returns false it's because another thread has already invoked reset before any increment  which could lead to double increments
-	        	System.out.println("\n--------------------------" + this.getName() + "--------------------------\n" 
-						+ "RESETTING NUMBER OF REPLICAS OF CHUNK " + fields[3]);
-						
-	        	while(!getServer().getControl_thread().resetChunkReplicationStatus(fields[2], fields[3])){
-					Thread.sleep(100);
-	        	}
-	        	System.out.println("RESET DONE\n--------------------------\n");
-	        	int delay = Server.rand.nextInt(Values.backup_thread_response_delay+1);
-	        	Thread.sleep(delay);
-	        } catch (InterruptedException e1) {
-	        	// TODO Auto-generated catch block
-	        	e1.printStackTrace();
-	        }
-	        
 	        if(requestHeader.matches(headerPattern)) {	        	
 	            if(getServer().getControl_thread().getNumberOfBackupsFromChunkNo(fields[2], Integer.parseInt(fields[3])) 
 	                    < Integer.parseInt(fields[4])){ //checks if this chunk has a ready been stored the number of desired times
