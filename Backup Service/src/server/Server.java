@@ -246,7 +246,7 @@ public class Server{
 	        try {
 	            Thread.sleep(delay);
 	            BackupChannelThread.getMulticast_backup_socket().send(pair.getValue());
-	            System.out.println("\n----------------Sent PUTCHUNK message----------------\n");
+	            System.out.println("----------------Sent PUTCHUNK message----------------\n");
 	        } catch (InterruptedException | IOException e) {
 	            e.printStackTrace();
 	            // TODO what to do here?
@@ -262,7 +262,7 @@ public class Server{
 	        try {
 	            Thread.sleep(delay);
 	            BackupChannelThread.getMulticast_backup_socket().send(packets_sent.get(key));
-	            System.out.println("\n----------------Sent PUTCHUNK message----------------\n");
+	            System.out.println("----------------Sent PUTCHUNK message----------------\n");
 	        } catch (IOException | InterruptedException e) {
 	            e.printStackTrace();
 	            // TODO what to do here?

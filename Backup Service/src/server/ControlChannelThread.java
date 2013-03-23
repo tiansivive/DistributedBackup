@@ -173,46 +173,53 @@ public class ControlChannelThread extends ChannelThread{
 	private void processRequest(String msg){
 
 		
-		System.out.println("\nControl Channel data\nMessage received: " + msg);
-	
-		Header message = new Header(msg);
-		
-		try{
-			switch(message.getMessageType()){
-				
-				case "STORED":
-				{
-					process_StoredMessage(message);
-					break;
-				}
-				case "GETCHUNK":
-				{
-					process_GetChunkMessage(message);
-					break;
-				}
-				case "DELETE":
-				{
-					process_DeleteMessage(message);
-					break;
-				}
-				case "REMOVED":
-				{
-					process_RemovedMessage(message);
-					break;
-				}
-				default:
-				{
-					System.out.println("Unrecognized message type");
-					
-					//TODO What happens here?!?! probably it's garbage, so maybe discard message?
-					break;
-				}
-			}
-		}catch(InterruptedException e){
-			
-			e.printStackTrace();
-		}
+	    System.out.println("Control Channel - Message received: " + msg);
+        int endOfHeaderIndex;
+
+        if((endOfHeaderIndex = msg.indexOf("\r\n\r\n")) != -1) { // find the end of the header
+            String requestHeader = msg.substring(0, endOfHeaderIndex);
+            String headerPattern = "^[A-Z] (1.0)? [a-z0-9]{64} ([0-9]{1,6})?$";
+
+            if(requestHeader.matches(headerPattern)) {
+                Header message = new Header(msg);
+
+                try {
+                    switch(message.getMessageType()){
+                    case "STORED":
+                    {
+                        process_StoredMessage(message);
+                        break;
+                    }
+                    case "GETCHUNK":
+                    {
+                        process_GetChunkMessage(message);
+                        break;
+                    }
+                    case "DELETE":
+                    {
+                        process_DeleteMessage(message);
+                        break;
+                    }
+                    case "REMOVED":
+                    {
+                        process_RemovedMessage(message);
+                        break;
+                    }
+                    default:
+                    {
+                        System.out.println("Unrecognized message type. Ignoring request");
+                        break;
+                    }
+                    }
+                } catch (InterruptedException e) {
+                    e.printStackTrace();
+                }
+            }
+        } else {
+            System.out.println("No <CRLF><CRLF> detected. Ignoring request");
+        }
 	}
+	
 	private void process_StoredMessage(Header message) throws InterruptedException{
 		
 		synchronized(storedMessagesInformation_Cleaner){
@@ -221,30 +228,22 @@ public class ControlChannelThread extends ChannelThread{
 		Thread.sleep(50); //wakes up the Cleaner, waits that it changes it's own readyToWork status to true and then changes it to false
 		this.storedMessagesInformation_Cleaner.setReadyToWork(false);
 		if(!this.requestedBackups.containsKey(message.getFileID())){
-			
 			incrementBackupNumberOfChunk(message.getFileID(), message.getChunkNumber());
-			
 			System.out.println(Thread.currentThread().getName() + " received someone else's STORED message");
-			return;
 		}else{
-			
 			this.incrementCurrentReplicationOfChunk(message.getFileID(), message.getChunkNumber());	
 			System.out.println(Thread.currentThread().getName() + " received confirmation that a replica has been backed up");
 		}
-
 	}
 	private void process_GetChunkMessage(Header message){
 		
-		
-		
-		
 	}
+	
 	private void process_DeleteMessage(Header message){
-		// TODO Auto-generated method stub
 		
 	}
+	
 	private void process_RemovedMessage(Header message){
-		// TODO Auto-generated method stub
 		
 	}
 	
