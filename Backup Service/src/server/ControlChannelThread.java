@@ -372,21 +372,26 @@ public class ControlChannelThread extends ChannelThread{
 	 * @param chunkNo
 	 */
 	public synchronized boolean resetChunkReplicationStatus(String file, String chunkNo){
-		
-		
+			
 		int currentNumber = 0; //Resetting replicas to 0
 		Map<Integer, Integer> tmp = null;
-		
+			
 		if(!this.numberOfBackupsPerChunk.containsKey(file)){ //Checks if the file is already in the Map as a key	
+			
 			tmp = new HashMap<Integer, Integer>();
 			this.numberOfBackupsPerChunk.put(file, tmp);//Stores this file as a key with the mapped value being empty
 		}else{
-			if(this.numberOfBackupsPerChunk.get(file).containsKey(chunkNo)){
-				if(this.numberOfBackupsPerChunk.get(file).get(chunkNo) == 0){
+			System.out.println("FILE EXISTS, CHECKING IF CHUNK EXISTS");
+			if(this.numberOfBackupsPerChunk.get(file).containsKey(Integer.parseInt(chunkNo))){
+				
+				System.out.println("CHUNK EXISTS");
+				if(this.numberOfBackupsPerChunk.get(file).get(Integer.parseInt(chunkNo)) == 0){
+					System.out.println("REPLICATION ALREADY 0, WAITING.....");
 					return false;
 				}	
 			}		
 		}
+		System.out.println("RESETTING FROM " + this.numberOfBackupsPerChunk.get(file).get(Integer.parseInt(chunkNo)) + " TO 0");
 		this.numberOfBackupsPerChunk.get(file).put(Integer.parseInt(chunkNo), currentNumber);//updates the number of replicas of said chunk
 		return true;
 	}
@@ -471,7 +476,6 @@ public class ControlChannelThread extends ChannelThread{
 							
 							System.out.println("Unable to fully backup chunk " + chunkNumber + " of " + fileID);
 							requestedBackups.get(fileID).remove(chunkNumber);
-							//chunksWithMissingReplicas.get(fileID).remove(chunkNumber);
 							chunksIterator.remove();
 							delay = 500; //If a chunk hasn't been fully backed up and requestedBackups isn't empty then a second Backup request has been made, so we reset the delay
 						}

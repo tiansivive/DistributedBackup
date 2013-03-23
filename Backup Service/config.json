@@ -3,7 +3,7 @@
 	"filesToBackup": [ 
 		{
 			"path":"config.json",
-			"replicationDegree":3
+			"replicationDegree":2
 		},
 		{
 			"path":"\Plerx",
@@ -22,7 +22,7 @@
 			"replicationDegree":2
 		},
 		{
-			"path":"Z:/tmp/teste",
+			"path":"Z:/tmp/teste1",
 			"replicationDegree":2
 		}
 	]
