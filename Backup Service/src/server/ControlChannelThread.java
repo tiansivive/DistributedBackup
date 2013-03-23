@@ -30,7 +30,6 @@ public class ControlChannelThread extends ChannelThread{
 	 *  That is why it wasn't extracted to the superclass and also why it has to be static.
 	 *  */
 	private static MulticastSocket multicast_control_socket;
-	private ExecutorService requestsPool;
 	private static ControlChannelThread instance;
 	
 	/**
@@ -50,19 +49,6 @@ public class ControlChannelThread extends ChannelThread{
 	private Thread backupRequestsCompletion_Supervisor;
 	private CleanerThread storedMessagesInformation_Cleaner;
 	
-	
-	private class RequestTask implements Runnable {
-		
-		private String request;
-        public RequestTask(String request) {
-            this.request = request;
-        }
-        
-        @Override
-        public void run() {
-            processRequest(request);            
-        }
-    }
 	private class CleanerThread extends Thread{
 		
 		protected boolean readyToWork;
@@ -141,7 +127,6 @@ public class ControlChannelThread extends ChannelThread{
 		this.completelyBackedUpFiles = new HashSet<String>();
 		this.numberOfBackupsPerChunk = new HashMap<String, Map<Integer, Integer> >();
 		this.requestedBackups = new HashMap<String, Map<Integer, ReplicationInfo> >();
-		this.requestsPool = Executors.newCachedThreadPool();	
 		
 		this.initializeBackgroundMaintenanceProcesses();
 	}
@@ -164,8 +149,9 @@ public class ControlChannelThread extends ChannelThread{
 			    multicast_control_socket.receive(datagram);
 			    
 			    if(!Server.fromThisMachine(datagram.getAddress())){
-			        String msg = new String(datagram.getData()).substring(0, datagram.getLength());
-			        this.requestsPool.execute(new RequestTask(msg));
+			        byte[] temp = new byte[datagram.getLength()];
+                    System.arraycopy(datagram.getData(), 0, temp, 0, datagram.getLength());
+			        this.incomingRequestsPool.execute(new RequestWorker(temp));
 			    }
 			}catch(IOException e){
 				// TODO Auto-generated catch block
@@ -175,14 +161,14 @@ public class ControlChannelThread extends ChannelThread{
 	}
 
 	
-	private void processRequest(String msg){
+	protected void processRequest(String msg){
 
 	    System.out.println("Control Channel - Message received: " + msg);
         int endOfHeaderIndex;
 
         if((endOfHeaderIndex = msg.indexOf("\r\n\r\n")) != -1) { // find the end of the header
             String requestHeader = msg.substring(0, endOfHeaderIndex);
-            String headerPattern = "^[A-Z] (1.0)? [a-z0-9]{64} ([0-9]{1,6})?$";
+            String headerPattern = "^[A-Z]{6,8} (1.0)? [a-z0-9]{64} ([0-9]{1,6})?$";
 
             if(requestHeader.matches(headerPattern)) {
                 Header message = new Header(msg);
@@ -218,6 +204,8 @@ public class ControlChannelThread extends ChannelThread{
                 } catch (InterruptedException | IOException e) {
                     e.printStackTrace();
                 }
+            } else {
+                System.out.println("Unrecognized message type. Ignoring request");
             }
         } else {
             System.out.println("No <CRLF><CRLF> detected. Ignoring request");
@@ -243,38 +231,49 @@ public class ControlChannelThread extends ChannelThread{
 	
 	private void process_GetChunkMessage(Header message) throws IOException, FileNotFoundException, InterruptedException{
 		
-		 File chunk = new File(Values.directory_to_backup_files+ "/" + message.getFileID() + "/chunk_" + message.getChunkNumber());
-		 
-		 byte[] chunkData = new byte[64000];
-		 FileInputStream input = new FileInputStream(chunk);
-		 
-		 int chunkSize = input.read(chunkData);
-		 
-		 if(chunkSize < 64000) {
-		        byte[] temp = new byte[chunkSize];
-		        System.arraycopy(chunkData, 0, temp, 0, chunkSize);
-		        chunkData = temp;
-		    }
-		
-		 String head = new String(Values.send_chunk_data_message_identifier +
-				 					Values.protocol_version +
-				 					message.getFileID() +
-				 					message.getChunkNumber());
-		 
-	
-		byte[] buf = ProtocolMessage.toBytes(head, chunkData);
-		DatagramPacket packet = new DatagramPacket(buf, buf.length, Values.multicast_restore_group_address, Values.multicast_restore_group_port);
+	    File chunk = new File(Values.directory_to_backup_files+ "/" + message.getFileID() + "/chunk_" + message.getChunkNumber());
 
-		// waiting between 0 and 400 miliseconds before sending response
-		int delay = Server.rand.nextInt(Values.restore_channel_send_chunk_delay+1);
-		Thread.sleep(delay);
-			
-		RestoreChannelThread.getMulticast_restore_socket().send(packet);
-		System.out.println(Thread.currentThread().getName() + " sent CHUNK message after processing GETCHUNK message");
-		 
+	    if(chunk.exists()) {
+
+	        byte[] chunkData = new byte[64000];
+	        FileInputStream input = new FileInputStream(chunk);
+
+	        int chunkSize = input.read(chunkData);
+
+	        if(chunkSize < 64000) {
+	            byte[] temp = new byte[chunkSize];
+	            System.arraycopy(chunkData, 0, temp, 0, chunkSize);
+	            chunkData = temp;
+	        }
+
+	        String head = new String(Values.send_chunk_data_message_identifier +
+	                Values.protocol_version +
+	                message.getFileID() +
+	                message.getChunkNumber());
+
+
+	        byte[] buf = ProtocolMessage.toBytes(head, chunkData);
+	        DatagramPacket packet = new DatagramPacket(buf, buf.length, Values.multicast_restore_group_address, Values.multicast_restore_group_port);
+
+	        // waiting between 0 and 400 miliseconds before sending response
+	        int delay = Server.rand.nextInt(Values.restore_channel_send_chunk_delay+1);
+	        Thread.sleep(delay);
+
+	        // CHECK RESTORE THREAD
+	        if(!getServer().getRestore_thread().hasReceivedChunkMsg(message.getFileID(), Integer.toString(message.getChunkNumber()))) {
+	            RestoreChannelThread.getMulticast_restore_socket().send(packet);
+	            System.out.println(Thread.currentThread().getName() + " sent CHUNK message after processing GETCHUNK message");
+	        } else {
+	            System.out.println(getName() + " SOMEBODY BEAT ME TO THE FINISH!");
+	            getServer().getRestore_thread().clearThisChunkMsg(message.getFileID(), Integer.toString(message.getChunkNumber()));
+	        }
+	    } else {
+	        // TODO TELL RESTORE THREAD TO IGNORE CHUNKS MESSAGES FOR THIS FILE ID AND CHUNK NUMBER
+	    }
+
 	}
-	
-	
+
+
 	private void process_DeleteMessage(Header message){
 		
 		 File file = new File(Values.directory_to_backup_files + "/" + message.getFileID());      	 
@@ -472,7 +471,8 @@ public class ControlChannelThread extends ChannelThread{
 							
 							System.out.println("Unable to fully backup chunk " + chunkNumber + " of " + fileID);
 							requestedBackups.get(fileID).remove(chunkNumber);
-							chunksWithMissingReplicas.get(fileID).remove(chunkNumber);
+							//chunksWithMissingReplicas.get(fileID).remove(chunkNumber);
+							chunksIterator.remove();
 							delay = 500; //If a chunk hasn't been fully backed up and requestedBackups isn't empty then a second Backup request has been made, so we reset the delay
 						}
 					}		
@@ -590,10 +590,10 @@ public class ControlChannelThread extends ChannelThread{
 	}
 	
 	public ExecutorService getRequestsPool() {
-		return requestsPool;
+		return incomingRequestsPool;
 	}
 	public void setRequestsPool(ExecutorService requestsPool) {
-		this.requestsPool = requestsPool;
+		this.incomingRequestsPool = requestsPool;
 	}
 
 	public static MulticastSocket getMulticast_control_socket(){

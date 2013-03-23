@@ -26,12 +26,10 @@ public class BackupChannelThread extends ChannelThread {
     
     private HashMap<String,ArrayList<Integer>> backedFiles;
     private long numberChunksBackedUp;
-    private ExecutorService incomingRequestsPool;
        
 	private BackupChannelThread() {
 		
 		this.setName("BackupChannelThread");
-	    incomingRequestsPool = Executors.newCachedThreadPool();
 	    backupDirectory = new File(Values.directory_to_backup_files);
 	    if(!backupDirectory.mkdir() && !backupDirectory.exists()) {
 	        System.out.println("Error creating backups directory. You may not have write permission");
@@ -66,7 +64,7 @@ public class BackupChannelThread extends ChannelThread {
 		}
 	}
 	
-	private void processRequest(String request) {
+	protected void processRequest(String request) {
 
 	    int endOfHeaderIndex;
 	    if((endOfHeaderIndex = request.indexOf("\r\n\r\n")) != -1) { // find the end of the header
@@ -133,7 +131,6 @@ public class BackupChannelThread extends ChannelThread {
 	                System.out.println("Chunk already has the desired replication degree.");
 	            }
 	        } else {
-
 	            System.out.println("Invalid header. Ignoring request");
 	        }
 
@@ -159,18 +156,6 @@ public class BackupChannelThread extends ChannelThread {
 			e.printStackTrace();
 		}
 	}
-	
-	private class RequestWorker implements Runnable{
-		
-        private final byte[] request;
-        public RequestWorker(byte[] request) {
-            this.request = request;
-        }
-        @Override
-        public void run() {
-            processRequest(new String(request));
-        }
-    }
 	
 	
 	/**
