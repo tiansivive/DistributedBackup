@@ -41,7 +41,6 @@ public class Header{
 		}catch(ArrayIndexOutOfBoundsException e){
 			
 			this.replicationDegree = -1;
-			this.chunkNumber = -1;
 			
 		}catch(NumberFormatException e){
 			

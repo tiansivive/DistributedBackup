@@ -307,9 +307,6 @@ public class ControlChannelThread extends ChannelThread{
 		if(!this.requestedBackups.containsKey(info.getFileID())){
 			
 			this.requestedBackups.put(info.getFileID(), chunkInfo);
-			/*synchronized(this.backupRequestsCompletion_Supervisor){		
-				this.backupRequestsCompletion_Supervisor.notifyAll();
-			}*/
 		}else{
 			
 			if(!this.getChunksFromFile(info.getFileID()).containsKey(info.getChunkNumber())){
@@ -340,9 +337,10 @@ public class ControlChannelThread extends ChannelThread{
 			if(this.numberOfBackupsPerChunk.get(file).containsKey(chunkNo)){ //Checks if, for this file, this particular chunk already has some replicas
 				currentNumber = this.numberOfBackupsPerChunk.get(file).get(chunkNo);
 				currentNumber++;
-				System.out.println("\n------------------------------\n"
-									+"INCREMENTING BACKUP REPLICAS OF CHUNK " + chunkNo + " TO: " + currentNumber
-									+"\n------------------------------\n");
+				System.out.println("\n----------------------------------------------------\n"
+									+ Thread.currentThread().getName() 
+									+" IS INCREMENTING BACKUP REPLICAS OF CHUNK "+ chunkNo + " TO: " + currentNumber
+									+"\n----------------------------------------------------\n");
 			}else{
 				currentNumber = 1;//In this case this particular chunk has never been backed up so this is its first replica
 			}
@@ -362,7 +360,6 @@ public class ControlChannelThread extends ChannelThread{
 	 * @param chunkNo
 	 */
 	public synchronized void incrementCurrentReplicationOfChunk(String file, int chunkNo){
-		
 		this.getChunkReplicationInfo(chunkNo, file).incrementCurrentReplication();
 	}
 	/**
