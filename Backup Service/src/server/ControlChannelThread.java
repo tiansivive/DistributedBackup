@@ -236,6 +236,8 @@ public class ControlChannelThread extends ChannelThread{
                         chunksInfo.add(chunkNum);
                         itMustIncrement = true;
                         System.out.println(src.toString()+" RECEIVED FIRST STORED ABOUT NEW CHUNK |"+fileId+":"+chunkNum+"|");
+                    } else {
+                        System.out.println(src.toString()+" IGNORING RECEIVED STORED |"+fileId+":"+chunkNum+"|");
                     }
 
                 } else {
