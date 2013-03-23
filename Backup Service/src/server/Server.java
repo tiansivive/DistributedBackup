@@ -130,12 +130,13 @@ public class Server{
 
 	private void deleteFile() {
 	    try {
+	        
 	        System.out.print("Path of file: ");
 	        String filePath = bufferedReader.readLine();
 
 	        File file = new File(filePath);
 	        String fileIdentifier = HashString.getFileIdentifier(file);
-
+	        
 	        String head = Values.file_deleted_control_message_identifier + " "
 	                + Values.protocol_version + " "
 	                + fileIdentifier;
