@@ -280,10 +280,7 @@ public class ControlChannelThread extends ChannelThread{
 	    File file = new File(Values.directory_to_backup_files+fileSeparator+ message.getFileID()); 
 	    
 	    if(file.isDirectory() && file.exists()){  
-	        File[] chunks = file.listFiles();
-	        for(File f : chunks) {
-	            f.delete();
-	        }
+	        file.delete();
 	    } else {
 	        System.out.println("RECEIVED DELETE MSG FOR FILE "+message.getFileID()+" THAT IS NOT BACKED UP IN THIS PEER");
 	    }
