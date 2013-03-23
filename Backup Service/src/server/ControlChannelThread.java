@@ -67,6 +67,7 @@ public class ControlChannelThread extends ChannelThread{
 			// TODO Auto-generated method stub
 		}
 	}
+	
 	private class ReplicationInfo{
 		
 		private int desiredReplication;
@@ -314,7 +315,6 @@ public class ControlChannelThread extends ChannelThread{
 				this.getChunksFromFile(info.getFileID()).put(info.getChunkNumber(), status);
 			}else{
 				//TODO se ja tiver sido feito o pedido de backup deste chunk, acontece o que?
-				
 				//this.requestedBackups.get(info.getFileID()).get(info.getChunkNumber()).setDesiredReplication(info.getReplicationDegree());
 			}
 		}

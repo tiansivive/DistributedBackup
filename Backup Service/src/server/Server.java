@@ -25,20 +25,12 @@ public class Server{
 	private HashMap<String,DatagramPacket> packets_sent;
 	private Config config;
 	private BufferedReader bufferedReader;
+	private HashMap<String,Boolean> backedUpPaths;
 	
-	
-	private class FileToBackup {
-	    public String path;
-	    public int replicationDegree;
-	}
-
-	private class Config {
-		public int availableSpaceOnServer;
-		public ArrayList<FileToBackup> filesToBackup;
-	}
 	
 	private Server() {
 	    packets_sent = new HashMap<String,DatagramPacket>();
+	    backedUpPaths = new HashMap<String,Boolean>();
 	    Server.rand = new Random();
 	    Server.machineAddresses = new ArrayList<InetAddress>();
         Server.thisMachineAddress = null;
@@ -87,8 +79,9 @@ public class Server{
 		    System.out.println("-----------   BACKUP SERVICE   -----------\n");
 		    System.out.println(" 1 - Backup files in config.json");
 		    System.out.println(" 2 - Backup new file");
-		    System.out.println(" 3 - Restore file");
-		    System.out.println(" 4 - Delete file");
+		    System.out.println(" 3 - List backed files");
+		    System.out.println(" 4 - Restore file");
+		    System.out.println(" 5 - Delete file");
 		    System.out.println(" 0 - Exit");
 		    System.out.println("\n------------------------------------------");
 		    System.out.print("\nOption: ");
@@ -107,10 +100,14 @@ public class Server{
                 }
                     break;
                 case "3": {
-                    restoreFile();
+                    listBackedFiles();
                 }
                     break;
                 case "4": {
+                    restoreFile();
+                }
+                    break;
+                case "5": {
                     deleteFile();
                 }
                     break;
@@ -126,6 +123,17 @@ public class Server{
                 e.printStackTrace();
             }
 		}
+	}
+	
+	private void listBackedFiles() {
+	    Iterator<Entry<String,Boolean>> it = backedUpPaths.entrySet().iterator();
+	    int counter = 1;
+	    while (it.hasNext()) {
+            Map.Entry<String,Boolean> pair = (Map.Entry<String,Boolean>)it.next();
+            if(pair.getValue()){ // is backed up in another peer
+                System.out.printf("%d - %s\n",counter++,pair.getKey());
+            }
+	    }
 	}
 
 	private void deleteFile() {
@@ -298,6 +306,7 @@ public class Server{
 									+ replicationDegree;
 				
 				Server.control_thread.updateRequestedBackups(new Header(head));
+				backedUpPaths.put(file.getAbsolutePath(), false);
 				byte[] buf = ProtocolMessage.toBytes(head, dataBytes);
 				
 				DatagramPacket packet = new DatagramPacket(buf, buf.length, Values.multicast_backup_group_address, Values.multicast_backup_group_port);
@@ -407,4 +416,14 @@ public class Server{
 		Server.restore_thread = restore_thread;
 	}
 
+	
+	private class FileToBackup {
+        public String path;
+        public int replicationDegree;
+    }
+
+    private class Config {
+        public int availableSpaceOnServer;
+        public ArrayList<FileToBackup> filesToBackup;
+    }
 }
