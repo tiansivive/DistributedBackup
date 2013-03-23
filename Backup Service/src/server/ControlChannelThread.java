@@ -164,7 +164,9 @@ public class ControlChannelThread extends ChannelThread{
 	
 	protected void processRequest(String msg){
 
-	    System.out.println("Control Channel - Message received: " + msg);
+	    System.out.println("\n----------------------------------------\n"
+	    			+ "Control Channel - " + Thread.currentThread().getName()
+	    			+ "- Message received:\n" + msg);
         int endOfHeaderIndex;
 
         if((endOfHeaderIndex = msg.indexOf("\r\n\r\n")) != -1) { // find the end of the header
@@ -215,14 +217,14 @@ public class ControlChannelThread extends ChannelThread{
 	
 	private void process_StoredMessage(Header message) throws InterruptedException{
 		
-		synchronized(storedMessagesInformation_Cleaner){
-			this.storedMessagesInformation_Cleaner.notifyAll();
-		}
-		Thread.sleep(50); //wakes up the Cleaner, waits that it changes it's own readyToWork status to true and then changes it to false
-		this.storedMessagesInformation_Cleaner.setReadyToWork(false);
 		if(!this.requestedBackups.containsKey(message.getFileID())){
 			incrementBackupNumberOfChunk(message.getFileID(), message.getChunkNumber());
 			System.out.println(Thread.currentThread().getName() + " received someone else's STORED message");
+			synchronized(storedMessagesInformation_Cleaner){
+				this.storedMessagesInformation_Cleaner.notifyAll();
+			}
+			Thread.sleep(50); //wakes up the Cleaner, waits that it changes it's own readyToWork status to true and then changes it to false
+			this.storedMessagesInformation_Cleaner.setReadyToWork(false);
 		}else{
 			this.incrementCurrentReplicationOfChunk(message.getFileID(), message.getChunkNumber());	
 			System.out.println(Thread.currentThread().getName() + " received confirmation that a replica has been backed up");
@@ -552,9 +554,9 @@ public class ControlChannelThread extends ChannelThread{
 							}
 						}else{
 							synchronized(this){
-								this.wait(60000); //Wakes up every minute if 
+								this.wait(60000); //Wakes up every minute
 							}
-							System.out.println(this.getName() + " is woke up\n"
+							System.out.println(this.getName() + " has woken up\n"
 									  						  + "Checkig if clean-up can begin...");
 							if(isReadyToWork()){
 								
