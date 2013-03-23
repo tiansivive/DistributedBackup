@@ -86,13 +86,19 @@ public class BackupChannelThread extends ChannelThread {
 	        	}
 	        	System.out.println("RESET DONE\n--------------------------\n");
 	        	int delay = Server.rand.nextInt(Values.backup_thread_response_delay+1);
-	        	Thread.sleep(delay);
-	        	System.out.println(Thread.currentThread().getName() + " WAITED " + delay + " MILISECONDS");
+	        	//Thread.sleep(delay);
+	        	synchronized (Thread.currentThread()) {
+					Thread.currentThread().wait(delay);
+					System.out.println(Thread.currentThread().getName() + " WAITED " + delay + " MILISECONDS");
+	        	}
+	        	
 	        } catch (InterruptedException e1) {
 	        	// TODO Auto-generated catch block
 	        	e1.printStackTrace();
 	        }
 	        
+	        System.out.println(getServer().getControl_thread().getNumberOfBackupsFromChunkNo(fields[2], Integer.parseInt(fields[3])) );
+	        System.out.println(fields[4]);
 	        if(requestHeader.matches(headerPattern)) {	        	
 	            if(getServer().getControl_thread().getNumberOfBackupsFromChunkNo(fields[2], Integer.parseInt(fields[3])) 
 	                    < Integer.parseInt(fields[4])){ //checks if this chunk has a ready been stored the number of desired times
@@ -109,6 +115,7 @@ public class BackupChannelThread extends ChannelThread {
 	                        System.out.println("Error creating file directory.");
 	                    } else {
 
+	                    	sendStoredMessage(fields);
 	                        if(!output.createNewFile()) {
 	                            System.out.println("Chunk already backed up.");
 	                        } else {
@@ -127,7 +134,7 @@ public class BackupChannelThread extends ChannelThread {
 	                                }
 	                            }
 	                        }
-	                        sendStoredMessage(fields);
+	                        
 	                    }
 	                } catch (IOException e) {
 	                    e.printStackTrace();
