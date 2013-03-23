@@ -277,12 +277,30 @@ public class ControlChannelThread extends ChannelThread{
 	private void process_DeleteMessage(Header message){
 
 	    System.out.println("FILE ID RECEIVED IN CONTROL CHANNEL : "+message.getFileID());
+	    File backups = new File(Values.directory_to_backup_files);
+	    
+	    System.out.println("DIRECTORY EXISTS: " + backups.exists());
+	    System.out.println("IS DIRECTORY: " + backups.isDirectory());
+	    
+	    if(backups.exists() && backups.isDirectory()) {
+	       File[] files = backups.listFiles();
+	       for(File f : files) {
+	           System.out.println(message.getFileID()+" == "+f.getName()+" ? "+message.getFileID().compareTo(f.getName()));
+	           if(f.getName().compareTo(message.getFileID()) == 0) {
+	               System.out.println("DELETE IT!!!!!");
+	           }
+	       }
+	    }
+	    
+	    /*
 	    String fileSeparator = System.getProperty("file.separator");
 	    File file = new File(Values.directory_to_backup_files+fileSeparator+ message.getFileID()); 
 	    
 	    System.out.println("CONSTRUCTED FILE PATH: " + file.getAbsolutePath());
 	    String[] chunks;      
 
+	    
+	    
 	    if(file.isDirectory()){  
 	        chunks = file.list();  
 	        for (int i = 0; i < chunks.length; i++) {  
@@ -293,6 +311,7 @@ public class ControlChannelThread extends ChannelThread{
 	        System.out.println("Received DELETE message but no files were found that matched the specified file.");
 	        //TODO
 	    }
+	    */
 	}
 
 
