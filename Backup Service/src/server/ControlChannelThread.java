@@ -168,10 +168,10 @@ public class ControlChannelThread extends ChannelThread{
 
         if((endOfHeaderIndex = msg.indexOf("\r\n\r\n")) != -1) { // find the end of the header
             String requestHeader = msg.substring(0, endOfHeaderIndex);
-            String headerPattern = "^[A-Z]{6,8} (1.0)? [a-z0-9]{64} ([0-9]{1,6})?$";
+            String headerPattern = "^[A-Z]{6,8} (1.0)? [a-z0-9]{64}( [0-9]{1,6})?$";
 
             if(requestHeader.matches(headerPattern)) {
-                Header message = new Header(msg);
+                Header message = new Header(requestHeader);
 
                 try {
                     switch(message.getMessageType()){
@@ -275,25 +275,26 @@ public class ControlChannelThread extends ChannelThread{
 
 
 	private void process_DeleteMessage(Header message){
-		
-		 File file = new File(Values.directory_to_backup_files + "/" + message.getFileID());      	 
-		 String[] chunks;      
 
-		 if(file.isDirectory()){  
-			 chunks = file.list();  
-			 for (int i = 0; i < chunks.length; i++) {  
-				 File myFile = new File(file, chunks[i]);
-				 myFile.delete();
-			 }  
-		 }else{
-			 System.out.println("Received DELETE message but no files were found that matched the specified file.");
-			 //TODO
-		 }
+	    String fileSeparator = System.getProperty("file.separator");
+	    File file = new File(Values.directory_to_backup_files+fileSeparator+ message.getFileID()); 
+	    
+	    if(file.isDirectory() && file.exists()){  
+	        File[] chunks = file.listFiles();
+	        for(File f : chunks) {
+	            f.delete();
+	        }
+	        if(file.list().length == 0) {
+	            file.delete();
+	        }
+	    } else {
+	        System.out.println("RECEIVED DELETE MSG FOR FILE "+message.getFileID()+" THAT IS NOT BACKED UP IN THIS PEER");
+	    }
 	}
-	
-	
+
+
 	private void process_RemovedMessage(Header message){
-		
+
 	}
 	
 	

@@ -99,8 +99,9 @@ public class BackupChannelThread extends ChannelThread {
 	            	this.getServer().getControl_thread().incrementBackupNumberOfChunk(fields[2], Integer.parseInt(fields[3]));
 	            	
 	                String data = request.substring(endOfHeaderIndex+4);
-	                File directory = new File(Values.directory_to_backup_files+"/"+fields[2]);
-	                File output = new File(Values.directory_to_backup_files+"/"+fields[2]+"/chunk_"+fields[3]);
+	                String fileSeparator = System.getProperty("file.separator");
+	                File directory = new File(Values.directory_to_backup_files+fileSeparator+fields[2]);
+	                File output = new File(Values.directory_to_backup_files+fileSeparator+fields[2]+fileSeparator+"chunk_"+fields[3]);
 
 	                try {
 	                    if(!directory.mkdirs() && !directory.exists()) {

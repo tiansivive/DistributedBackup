@@ -32,6 +32,7 @@ public class Values{
 	public static final int restore_channel_send_chunk_delay = 400;
 	
 	public static final int number_of_attempts_to_resend_chunks = 5;
+	public static final int number_of_attempts_to_delete_files = 15;
 	
 	
 	public static int getMulticast_control_group_port() {
