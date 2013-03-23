@@ -4,7 +4,6 @@ import java.io.IOException;
 import java.net.DatagramPacket;
 import java.net.MulticastSocket;
 import java.util.HashMap;
-import java.util.concurrent.ExecutorService;
 
 import constantValues.Values;
 
@@ -19,10 +18,10 @@ public class RestoreChannelThread extends ChannelThread{
 	 *  */
 	private static MulticastSocket multicast_restore_socket;
 	private static RestoreChannelThread instance;
-	private HashMap<String, byte[]> receivedChunkMessages;
+	private HashMap<String, String> receivedChunkMessages;
 	
 	private RestoreChannelThread(){
-	    receivedChunkMessages = new HashMap<String,byte[]>();
+	    receivedChunkMessages = new HashMap<String,String>();
 	}
 	
 	public static RestoreChannelThread getInstance(){
@@ -62,11 +61,11 @@ public class RestoreChannelThread extends ChannelThread{
 	            String[] fields = requestHeader.split(" ");
 	            byte[] data = request.substring(endOfHeaderIndex+4).getBytes();
 
-	            System.out.println("RECEIVED CHUNK MESSAGE!! SAVING IT ON THE HASHMAP!");
 	            
 	            synchronized (this) {
-	                receivedChunkMessages.put(fields[2]+":"+fields[3], data);
+	                receivedChunkMessages.put(fields[2],fields[3]);
 	            }
+	            System.out.println("RECEIVED CHUNK MESSAGE!! SAVING IT ON THE HASHMAP!");
 	        } else {
 	            System.out.println("Invalid header. Ignoring request");
 	        }
@@ -75,31 +74,37 @@ public class RestoreChannelThread extends ChannelThread{
 	    }
 	}
 
-	 public synchronized boolean hasReceivedChunkMsg(String fileId, String chunkNum) {
-	     return receivedChunkMessages.containsKey(fileId+":"+chunkNum);
-	 }
-	 
-	 public synchronized void clearThisChunkMsg(String fileId, String chunkNum) {
+	public synchronized boolean hasReceivedChunkMsg(String fileId, String chunkNum) {
+	    try {
+	        return receivedChunkMessages.get(fileId).contains(chunkNum);
+	    } catch (Exception e) {
+	        return false;
+	        // TODO: handle exception
+	    }
+
+	}
+
+	public synchronized void clearThisChunkMsg(String fileId, String chunkNum) {
 	     receivedChunkMessages.remove(fileId+":"+chunkNum);
 	 }
 
 	 /**
 	  * Init_socket.
 	  *
-	 * @throws IOException Signals that an I/O exception has occurred.
-	 */
-	public static void init_socket() throws IOException{
-		
-		multicast_restore_socket = new MulticastSocket(Values.multicast_restore_group_port);
-		multicast_restore_socket.joinGroup(Values.multicast_restore_group_address);
-		multicast_restore_socket.setTimeToLive(1);
-	}
-	
-	public static MulticastSocket getMulticast_restore_socket(){
-		return multicast_restore_socket;
-	}
-	public static void setMulticast_restore_socket(
-			MulticastSocket multicast_restore_socket){
-		RestoreChannelThread.multicast_restore_socket = multicast_restore_socket;
+	  * @throws IOException Signals that an I/O exception has occurred.
+	  */
+	 public static void init_socket() throws IOException{
+
+	     multicast_restore_socket = new MulticastSocket(Values.multicast_restore_group_port);
+	     multicast_restore_socket.joinGroup(Values.multicast_restore_group_address);
+	     multicast_restore_socket.setTimeToLive(1);
+	 }
+
+	 public static MulticastSocket getMulticast_restore_socket(){
+	     return multicast_restore_socket;
+	 }
+	 public static void setMulticast_restore_socket(
+	         MulticastSocket multicast_restore_socket){
+	     RestoreChannelThread.multicast_restore_socket = multicast_restore_socket;
 	}
 }

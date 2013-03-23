@@ -88,6 +88,7 @@ public class Server{
 		    System.out.println(" 1 - Backup files in config.json");
 		    System.out.println(" 2 - Backup new file");
 		    System.out.println(" 3 - Restore file");
+		    System.out.println(" 4 - Delete file");
 		    System.out.println(" 0 - Exit");
 		    System.out.println("\n------------------------------------------");
 		    System.out.print("\nOption: ");
@@ -109,6 +110,10 @@ public class Server{
                     restoreFile();
                 }
                     break;
+                case "4": {
+                    deleteFile();
+                }
+                    break;
                 case "0": {
                     System.exit(-1);
                 }
@@ -122,6 +127,32 @@ public class Server{
             }
 		}
 	}
+
+	private void deleteFile() {
+	    try {
+	        System.out.print("Path of file: ");
+	        String filePath = bufferedReader.readLine();
+
+	        File file = new File(filePath);
+	        String fileIdentifier = HashString.getFileIdentifier(file);
+
+	        String head = Values.file_deleted_control_message_identifier + " "
+	                + Values.protocol_version + " "
+	                + fileIdentifier;
+
+	        byte[] buf = ProtocolMessage.toBytes(head, null);
+
+	        DatagramPacket packet = new DatagramPacket(buf, buf.length, Values.multicast_control_group_address, Values.multicast_control_group_port);
+	        
+	        for(int i = 0; i < 5; i++) {
+	            Thread.sleep(i*100);
+	            ControlChannelThread.getMulticast_control_socket().send(packet);
+	        }
+
+	    } catch (Exception e) {
+
+	    }
+	}
 	
 	private void restoreFile() {
 	    File file = new File("walking/tiger.jpg");
@@ -132,11 +163,9 @@ public class Server{
 	            + fileIdentifier + " "
 	            + 0;
 
-	    //Server.control_thread.updateRequestedBackups(new Header(head));
 	    byte[] buf = ProtocolMessage.toBytes(head, null);
-
 	    DatagramPacket packet = new DatagramPacket(buf, buf.length, Values.multicast_control_group_address, Values.multicast_control_group_port);
-	    //packets_sent.put(fileIdentifier+":"+chunkNum, packet);
+	    
 	    try {
             ControlChannelThread.getMulticast_control_socket().send(packet);
         } catch (IOException e) {

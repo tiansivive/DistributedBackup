@@ -246,10 +246,10 @@ public class ControlChannelThread extends ChannelThread{
 	            chunkData = temp;
 	        }
 
-	        String head = new String(Values.send_chunk_data_message_identifier +
-	                Values.protocol_version +
-	                message.getFileID() +
-	                message.getChunkNumber());
+	        String head = new String(Values.send_chunk_data_message_identifier + " "
+	                + Values.protocol_version + " "
+	                +  message.getFileID() + " "
+	                + message.getChunkNumber());
 
 
 	        byte[] buf = ProtocolMessage.toBytes(head, chunkData);
