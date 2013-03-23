@@ -418,11 +418,15 @@ public class ControlChannelThread extends ChannelThread{
 				try {
 				    while(true){
 				        if(ourRequestedBackups.isEmpty()){
-				            System.out.println(this.getName() + " is going to wait...");
-				            wait();
+				            synchronized (this) {
+				                System.out.println(this.getName() + " is going to wait...");
+	                            wait();
+                            }
 				        } else {
 				            System.out.println(this.getName() + " REQUESTED BACKUPS IS NOT EMPTY. WE STILL DON'T HAVE ALL FILES WITH OUR DESIRED REPLICATION DEGREE");
-				            wait(delay);
+				            synchronized (this) {
+				                wait(delay);
+                            }
 				            checkCompletionOfBackupRequests();
 
 				            if(!chunksWithMissingReplicas.isEmpty()) {
