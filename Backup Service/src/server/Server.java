@@ -87,7 +87,8 @@ public class Server{
 		    System.out.println("-----------   BACKUP SERVICE   -----------\n");
 		    System.out.println(" 1 - Backup files in config.json");
 		    System.out.println(" 2 - Backup new file");
-		    System.out.println(" 3 - Exit");
+		    System.out.println(" 3 - Restore file");
+		    System.out.println(" 0 - Exit");
 		    System.out.println("\n------------------------------------------");
 		    System.out.print("\nOption: ");
 		    
@@ -105,6 +106,10 @@ public class Server{
                 }
                     break;
                 case "3": {
+                    restoreFile();
+                }
+                    break;
+                case "0": {
                     System.exit(-1);
                 }
                     break;
@@ -116,6 +121,28 @@ public class Server{
                 e.printStackTrace();
             }
 		}
+	}
+	
+	private void restoreFile() {
+	    File file = new File("walking/tiger.jpg");
+	    String fileIdentifier = HashString.getFileIdentifier(file);
+	    
+	    String head = Values.send_chunk_data_message_identifier + " "
+	            + Values.protocol_version + " "
+	            + fileIdentifier + " "
+	            + 0;
+
+	    //Server.control_thread.updateRequestedBackups(new Header(head));
+	    byte[] buf = ProtocolMessage.toBytes(head, null);
+
+	    DatagramPacket packet = new DatagramPacket(buf, buf.length, Values.multicast_control_group_address, Values.multicast_control_group_port);
+	    //packets_sent.put(fileIdentifier+":"+chunkNum, packet);
+	    try {
+            ControlChannelThread.getMulticast_control_socket().send(packet);
+        } catch (IOException e) {
+            // TODO Auto-generated catch block
+            e.printStackTrace();
+        }
 	}
 
 	private void backupConfigFiles() {
