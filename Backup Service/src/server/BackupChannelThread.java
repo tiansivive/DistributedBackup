@@ -26,7 +26,6 @@ public class BackupChannelThread extends ChannelThread {
     private static BackupChannelThread instance;
     
     private HashMap<String,ArrayList<Integer>> backedFiles;
-    private long numberChunksBackedUp;
        
 	private BackupChannelThread() {
 		
@@ -37,7 +36,6 @@ public class BackupChannelThread extends ChannelThread {
 	        System.exit(-1);
 	    }
 	    backedFiles = new HashMap<String,ArrayList<Integer>>();
-	    numberChunksBackedUp = 0;
 	}
 
 	public static BackupChannelThread getInstance() {
@@ -87,8 +85,6 @@ public class BackupChannelThread extends ChannelThread {
 	            if(getServer().getControl_thread().getNumberOfBackupsFromChunkNo(fields[2], Integer.parseInt(fields[3])) 
 	                    < Integer.parseInt(fields[4])){ //checks if this chunk has a ready been stored the number of desired times
 	            	
-	            	this.getServer().getControl_thread().incrementReplicationOfOtherChunk(fields[2], Integer.parseInt(fields[3]));
-	            	
 	                String data = request.substring(endOfHeaderIndex+4);
 	                String fileSeparator = System.getProperty("file.separator");
 	                File directory = new File(Values.directory_to_backup_files+fileSeparator+fields[2]);
@@ -106,9 +102,9 @@ public class BackupChannelThread extends ChannelThread {
 	                            fop.write(data.getBytes());
 	                            fop.flush();
 	                            fop.close();
+	                            getServer().getControl_thread().incrementReplicationOfOtherChunk(fields[2], Integer.parseInt(fields[3]));
 
-	                            synchronized (this) { // prevent multiple access to the hashmap
-	                                numberChunksBackedUp++;
+	                            synchronized (backedFiles) { // prevent multiple access to the hashmap
 	                                if(backedFiles.containsKey(fields[2])) {
 	                                    backedFiles.get(fields[2]).add(new Integer(fields[3]));
 	                                } else {
@@ -121,7 +117,6 @@ public class BackupChannelThread extends ChannelThread {
 	                    }
 	                } catch (IOException e) {
 	                    e.printStackTrace();
-	                    // TODO what to do here?
 	                }
 	            } else {
 	                System.out.println("Chunk already has the desired replication degree.");

@@ -178,13 +178,14 @@ public class ControlChannelThread extends ChannelThread{
             String headerPattern = "^[A-Z]{6,8} (1.0)? [a-z0-9]{64}( [0-9]{1,6})?$";
 
             if(requestHeader.matches(headerPattern)) {
-                Header message = new Header(requestHeader);
+                String[] fields = requestHeader.split(" ");
+                Header message = new Header(requestHeader); // NOT WORKING CORRECTLY
 
                 try {
-                    switch(message.getMessageType()){
+                    switch(fields[0]){
                     case "STORED":
                     {
-                        process_StoredMessage(message,src);
+                        process_StoredMessage(fields,src);
                         break;
                     }
                     case "GETCHUNK":
@@ -219,9 +220,9 @@ public class ControlChannelThread extends ChannelThread{
         }
 	}
 
-	private void process_StoredMessage(Header message, InetAddress src) throws InterruptedException{
-	    String fileId = message.getFileID();
-	    int chunkNum = message.getChunkNumber();
+	private void process_StoredMessage(String[] requestFields, InetAddress src) throws InterruptedException{
+	    String fileId = requestFields[2];
+	    int chunkNum = Integer.parseInt(requestFields[3]);
 	    boolean itMustIncrement = false;
 
 	    synchronized (storedMessagesReceived) {
