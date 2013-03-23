@@ -168,7 +168,7 @@ public class ControlChannelThread extends ChannelThread{
 
         if((endOfHeaderIndex = msg.indexOf("\r\n\r\n")) != -1) { // find the end of the header
             String requestHeader = msg.substring(0, endOfHeaderIndex);
-            String headerPattern = "^[A-Z]{6,8} (1.0)? [a-z0-9]{64} ([0-9]{1,6})?$";
+            String headerPattern = "^[A-Z]{6,8} (1.0)? [a-z0-9]{64}( [0-9]{1,6})?$";
 
             if(requestHeader.matches(headerPattern)) {
                 Header message = new Header(msg);
