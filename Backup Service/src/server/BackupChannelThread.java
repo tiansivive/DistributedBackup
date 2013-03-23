@@ -87,6 +87,7 @@ public class BackupChannelThread extends ChannelThread {
 	        	System.out.println("RESET DONE\n--------------------------\n");
 	        	int delay = Server.rand.nextInt(Values.backup_thread_response_delay+1);
 	        	Thread.sleep(delay);
+	        	System.out.println(Thread.currentThread().getName() + " WAITED " + delay + " MILISECONDS");
 	        } catch (InterruptedException e1) {
 	        	// TODO Auto-generated catch block
 	        	e1.printStackTrace();
