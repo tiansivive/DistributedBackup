@@ -234,7 +234,7 @@ public class ControlChannelThread extends ChannelThread{
                     if(!chunksInfo.contains(chunkNum)) { // first stored from this src about this chunk
                         chunksInfo.add(chunkNum);
                         itMustIncrement = true;
-                        System.out.println(src.toString()+" RECEIVED FIRST STORED ABOUT NEW CHUNK");
+                        System.out.println(src.toString()+" RECEIVED FIRST STORED ABOUT NEW CHUNK |"+fileId+":"+chunkNum+"|");
                     }
 
                 } else {
@@ -242,15 +242,16 @@ public class ControlChannelThread extends ChannelThread{
                     chunksInfo.add(chunkNum);
                     filesInfo.put(fileId, chunksInfo);
                     itMustIncrement = true;
-                    System.out.println(src.toString()+" RECEIVED FIRST STORED ABOUT NEW FILE");
+                    System.out.println(src.toString()+" RECEIVED FIRST STORED ABOUT NEW FILE |"+fileId+":"+chunkNum+"|");
                 }
             } else {
                 Map<String,ArrayList<Integer>> filesInfo = new HashMap<String,ArrayList<Integer>>();
                 ArrayList<Integer> chunksInfo = new ArrayList<Integer>();
                 chunksInfo.add(chunkNum);
                 filesInfo.put(fileId, chunksInfo);
+                storedMessagesReceived.put(src, filesInfo);
                 itMustIncrement = true;
-                System.out.println(src.toString()+" RECEIVED FIRST STORED FROM PEER");
+                System.out.println(src.toString()+" RECEIVED FIRST STORED FROM PEER |"+fileId+":"+chunkNum+"|");
             }
 	    }
 
@@ -258,12 +259,12 @@ public class ControlChannelThread extends ChannelThread{
 	        if(ourRequestedBackups.containsKey(fileId)) { // it's a message about our backups
 	            if(itMustIncrement) {
 	                incrementReplicationOfOurChunk(fileId, chunkNum);
-	                System.out.println(src.toString()+" RECEIVED CONFIRMATION OF STORED FILE "+fileId+" CHUNK "+chunkNum);
+	                System.out.println(src.toString()+" RECEIVED CONFIRMATION OF STORED FILE |"+fileId+":"+chunkNum+"|");
 	            }
 	        } else { // someone else's backup
 	            if(itMustIncrement) {
 	                incrementReplicationOfOtherChunk(fileId, chunkNum);
-	                System.out.println(src.toString()+" RECEIVED STORED OF OTHER");
+	                System.out.println(src.toString()+" RECEIVED STORED OF OTHER |"+fileId+":"+chunkNum+"|");
 	            }
 	        }
 	    }
@@ -361,26 +362,26 @@ public class ControlChannelThread extends ChannelThread{
 	 * @param file
 	 * @param chunkNo
 	 */
-	public void incrementReplicationOfOtherChunk(String fileId, int chunkNo){
+	public void incrementReplicationOfOtherChunk(String fileId, int chunkNum){
 		
 	    synchronized (replicationDegreeOfOthersChunks) {
 	        Map<Integer,Integer> chunksInfo = replicationDegreeOfOthersChunks.get(fileId);
 
 	        if(chunksInfo != null) {
-	            Integer currentDegree = chunksInfo.get(chunkNo);
+	            Integer currentDegree = chunksInfo.get(chunkNum);
 	            if(currentDegree != null) {
 	                currentDegree += 1;
-	                System.out.println("FILE EXISTS - CHUNK WITH REPLICATION "+currentDegree);
+	                System.out.println("FILE EXISTS - CHUNK WITH REPLICATION "+currentDegree+" |"+fileId+":"+chunkNum+"|");
 	            } else {
-	                chunksInfo.put(chunkNo, 1);
-	                System.out.println("FILE EXISTS - CHUNK WITH REPLICATION 1");
+	                chunksInfo.put(chunkNum, 1);
+	                System.out.println("FILE EXISTS - CHUNK WITH REPLICATION 1 |"+fileId+":"+chunkNum+"|");
 	            }
 	        }
 	        else {
 	            chunksInfo = new HashMap<Integer,Integer>();
-	            chunksInfo.put(chunkNo, 1);
+	            chunksInfo.put(chunkNum, 1);
 	            replicationDegreeOfOthersChunks.put(fileId, chunksInfo);
-	            System.out.println("NEW FILE - CHUNK WITH REPLICATION 1");
+	            System.out.println("NEW FILE - CHUNK WITH REPLICATION 1 |"+fileId+":"+chunkNum+"|");
 	        }
 	    }
 	}
