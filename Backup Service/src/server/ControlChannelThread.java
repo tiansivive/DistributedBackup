@@ -278,7 +278,9 @@ public class ControlChannelThread extends ChannelThread{
 
 	    System.out.println("FILE ID RECEIVED IN CONTROL CHANNEL : "+message.getFileID());
 	    String fileSeparator = System.getProperty("file.separator");
-	    File file = new File(Values.directory_to_backup_files +fileSeparator+ message.getFileID());      	 
+	    File file = new File(Values.directory_to_backup_files+fileSeparator+ message.getFileID()); 
+	    
+	    System.out.println("CONSTRUCTED FILE PATH: " + file.getAbsolutePath());
 	    String[] chunks;      
 
 	    if(file.isDirectory()){  
