@@ -134,27 +134,43 @@ public class Server{
 	        System.out.print("Path of file: ");
 	        String filePath = bufferedReader.readLine();
 
-	        File file = new File(filePath);
-	        String fileIdentifier = HashString.getFileIdentifier(file);
-	        
-	        String head = Values.file_deleted_control_message_identifier + " "
-	                + Values.protocol_version + " "
-	                + fileIdentifier;
+	        final File file = new File(filePath);
 
-	        byte[] buf = ProtocolMessage.toBytes(head, null);
+	        if(file.exists()) {
+	            if(!file.isDirectory()) {
+	                new Thread(new Runnable() {
+	                    @Override
+	                    public void run() {
+	                        String fileIdentifier = HashString.getFileIdentifier(file);
+	                        String head = Values.file_deleted_control_message_identifier + " "
+	                                + Values.protocol_version + " "
+	                                + fileIdentifier;
 
-	        DatagramPacket packet = new DatagramPacket(buf, buf.length, Values.multicast_control_group_address, Values.multicast_control_group_port);
-	        
-	        for(int i = 0; i < 5; i++) {
-	            Thread.sleep(i*100);
-	            ControlChannelThread.getMulticast_control_socket().send(packet);
+	                        byte[] buf = ProtocolMessage.toBytes(head, null);
+	                        DatagramPacket packet = new DatagramPacket(buf, buf.length, Values.multicast_control_group_address, Values.multicast_control_group_port);
+
+	                        for(int i = 0; i < Values.number_of_attempts_to_delete_files; i++) {
+	                            try {
+	                                Thread.sleep(i*50);
+	                                ControlChannelThread.getMulticast_control_socket().send(packet);
+	                            } catch (InterruptedException | IOException e) {
+	                                e.printStackTrace();
+	                            }
+	                        }
+	                    }
+	                }).start();
+	            } else {
+	                System.out.println("WE'RE NOT ACCEPTING DIRECTORIES FOR NOW. INDIVIDUAL FILES ONLY."); // TODO
+	            }
+	        } else {
+	            System.out.println("THAT FILE DOESN'T EXIST! TRY AGAIN.");
 	        }
 
 	    } catch (Exception e) {
 
 	    }
 	}
-	
+
 	private void restoreFile() {
 	    File file = new File("walking/tiger.jpg");
 	    String fileIdentifier = HashString.getFileIdentifier(file);
