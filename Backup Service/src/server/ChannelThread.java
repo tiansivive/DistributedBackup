@@ -23,10 +23,12 @@ public abstract class ChannelThread extends Thread{
 
         private final byte[] request;
         private final InetAddress src;
+        
         public RequestWorker(byte[] request, InetAddress src) {
             this.request = request;
             this.src = src;
         }
+        
         @Override
         public void run() {
             processRequest(new String(request),src);

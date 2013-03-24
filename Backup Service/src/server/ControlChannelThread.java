@@ -131,6 +131,10 @@ public class ControlChannelThread extends ChannelThread{
 	
 	protected void processRequest(String msg, InetAddress src){
 
+
+	    System.out.println("\n----------------------------------------\n"
+	    			+ "Control Channel - " + Thread.currentThread().getName()
+	    			+ "- Message received:\n" + msg);
         int endOfHeaderIndex;
         if((endOfHeaderIndex = msg.indexOf("\r\n\r\n")) != -1) { // find the end of the header
             String requestHeader = msg.substring(0, endOfHeaderIndex);
@@ -176,8 +180,6 @@ public class ControlChannelThread extends ChannelThread{
                 } catch (InterruptedException | IOException e) {
                     e.printStackTrace();
                 }
-                System.out.println("CONTROL CHANNEL - MESSAGE RECEIVED: "+requestHeader);
-
             } else {
                 System.out.println("Unrecognized message type. Ignoring request");
             }
@@ -203,6 +205,7 @@ public class ControlChannelThread extends ChannelThread{
 
 	private void process_GetChunkMessage(Header message, InetAddress ip) throws IOException, FileNotFoundException, InterruptedException{
 
+		
 	    File chunk = new File(Values.directory_to_backup_files+ "/" + message.getFileID() + "/chunk_" + message.getChunkNumber());
 
 	    if(chunk.exists()) {
@@ -224,13 +227,13 @@ public class ControlChannelThread extends ChannelThread{
 	        String head = null;
 	        byte[] buf = null;
 	        DatagramPacket packet;
+	        
 	        if(Values.protocol_version == "1.0"){
-
 	            head = new String(Values.send_chunk_data_message_identifier + " "
 	                    + Values.protocol_version + " "
 	                    +  message.getFileID() + " "
 	                    + message.getChunkNumber());
-	            
+
 	            ProtocolMessage.toBytes(head, chunkData);
 	            packet = new DatagramPacket(buf, buf.length, Values.multicast_restore_group_address, Values.multicast_restore_group_port);
 	            // CHECK RESTORE THREAD
@@ -553,7 +556,6 @@ public class ControlChannelThread extends ChannelThread{
 		            e.printStackTrace();
 		        }
 		    }
-
 		};
 		storedMessagesInformation_Cleaner.setName("CleanerDaemonThread");
 		storedMessagesInformation_Cleaner.setDaemon(true);

@@ -148,13 +148,6 @@ public class BackupChannelThread extends ChannelThread {
 			String head = new String(Values.stored_chunk_control_message_identifier + " " + fields[1] + " " + fields[2] + " " + fields[3]);
 			byte[] buf = ProtocolMessage.toBytes(head, null);
 			DatagramPacket packet = new DatagramPacket(buf, buf.length, Values.multicast_control_group_address, Values.multicast_control_group_port);
-
-			/*
-			// waiting between 0 and 400 miliseconds before sending response
-			int delay = Server.rand.nextInt(Values.backup_thread_response_delay+1);
-			Thread.sleep(delay);
-			*/
-			
 			ControlChannelThread.getMulticast_control_socket().send(packet);
 			System.out.println(Thread.currentThread().getName() + " sent STORED message");
 			
