@@ -5,6 +5,7 @@ import java.io.FileInputStream;
 import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.net.DatagramPacket;
+import java.net.InetAddress;
 import java.net.MulticastSocket;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -46,6 +47,7 @@ public class ControlChannelThread extends ChannelThread{
 	private HashMap<String, Map<Integer, Integer> > numberOfBackupsPerChunk; //map<ChunkNo,numOfBackups>
 	
 	private HashSet<String> completelyBackedUpFiles; 
+	private HashMap<String, Set<Integer> > doNotReplyMessages;
 	private Thread backupRequestsCompletion_Supervisor;
 	private CleanerThread storedMessagesInformation_Cleaner;
 	
@@ -125,6 +127,7 @@ public class ControlChannelThread extends ChannelThread{
 
  	private ControlChannelThread(){
 		this.setName("ControlThread");
+		this.doNotReplyMessages = new HashMap<String, Set<Integer>>();
 		this.completelyBackedUpFiles = new HashSet<String>();
 		this.numberOfBackupsPerChunk = new HashMap<String, Map<Integer, Integer> >();
 		this.requestedBackups = new HashMap<String, Map<Integer, ReplicationInfo> >();
@@ -161,8 +164,12 @@ public class ControlChannelThread extends ChannelThread{
 		}	
 	}
 
-	
-	protected void processRequest(String msg){
+	@Override
+	protected void processRequest(String request){
+		// TODO Auto-generated method stub
+		
+	}
+	protected void processRequest(String msg, InetAddress ip){
 
 	    System.out.println("\n----------------------------------------\n"
 	    			+ "Control Channel - " + Thread.currentThread().getName()
@@ -185,7 +192,7 @@ public class ControlChannelThread extends ChannelThread{
                     }
                     case "GETCHUNK":
                     {
-                        process_GetChunkMessage(message);
+                        process_GetChunkMessage(message, ip);
                         break;
                     }
                     case "DELETE":
@@ -196,6 +203,11 @@ public class ControlChannelThread extends ChannelThread{
                     case "REMOVED":
                     {
                         process_RemovedMessage(message);
+                        break;
+                    }
+                    case "DONOTREPLY":
+                    {
+                        process_DoNotReplyMessage(message);
                         break;
                     }
                     default:
@@ -215,6 +227,20 @@ public class ControlChannelThread extends ChannelThread{
         }
 	}
 	
+	private  void process_DoNotReplyMessage(Header message){
+		
+		HashSet<Integer> tmp = new HashSet<Integer>();
+		
+		if(!this.doNotReplyMessages.containsKey(message.getFileID())){
+			synchronized(this){
+				this.doNotReplyMessages.put(message.getFileID(), tmp);
+			}
+		}
+		synchronized (this){
+			this.doNotReplyMessages.get(message.getFileID()).add(message.getChunkNumber());
+		}
+		
+	}
 	private void process_StoredMessage(Header message) throws InterruptedException{
 		
 		if(!this.requestedBackups.containsKey(message.getFileID())){
@@ -232,15 +258,18 @@ public class ControlChannelThread extends ChannelThread{
 	}
 
 	
-	private void process_GetChunkMessage(Header message) throws IOException, FileNotFoundException, InterruptedException{
+	private void process_GetChunkMessage(Header message, InetAddress ip) throws IOException, FileNotFoundException, InterruptedException{
 		
 	    File chunk = new File(Values.directory_to_backup_files+ "/" + message.getFileID() + "/chunk_" + message.getChunkNumber());
 
 	    if(chunk.exists()) {
 
+	    	// waiting between 0 and 400 miliseconds before sending response
+	        int delay = Server.rand.nextInt(Values.restore_channel_send_chunk_delay+1);
+	        Thread.sleep(delay);
+	        
 	        byte[] chunkData = new byte[64000];
 	        FileInputStream input = new FileInputStream(chunk);
-
 	        int chunkSize = input.read(chunkData);
 
 	        if(chunkSize < 64000) {
@@ -249,27 +278,29 @@ public class ControlChannelThread extends ChannelThread{
 	            chunkData = temp;
 	        }
 
-	        String head = new String(Values.send_chunk_data_message_identifier + " "
-	                + Values.protocol_version + " "
-	                +  message.getFileID() + " "
-	                + message.getChunkNumber());
-
-
-	        byte[] buf = ProtocolMessage.toBytes(head, chunkData);
-	        DatagramPacket packet = new DatagramPacket(buf, buf.length, Values.multicast_restore_group_address, Values.multicast_restore_group_port);
-
-	        // waiting between 0 and 400 miliseconds before sending response
-	        int delay = Server.rand.nextInt(Values.restore_channel_send_chunk_delay+1);
-	        Thread.sleep(delay);
-
-	        // CHECK RESTORE THREAD
-	        if(!getServer().getRestore_thread().hasReceivedChunkMsg(message.getFileID(), Integer.toString(message.getChunkNumber()))) {
-	            RestoreChannelThread.getMulticast_restore_socket().send(packet);
-	            System.out.println(Thread.currentThread().getName() + " sent CHUNK message after processing GETCHUNK message");
-	        } else {
-	            System.out.println(getName() + " SOMEBODY BEAT ME TO THE FINISH!");
-	            getServer().getRestore_thread().clearThisChunkMsg(message.getFileID(), Integer.toString(message.getChunkNumber()));
+	        String head = null;
+	        byte[] buf = null;
+	        DatagramPacket packet;
+	        if(Values.protocol_version == "1.0"){
+	        	
+	        	 head = new String(Values.send_chunk_data_message_identifier + " "
+	 	                + Values.protocol_version + " "
+	 	                +  message.getFileID() + " "
+	 	                + message.getChunkNumber());
+	        	ProtocolMessage.toBytes(head, chunkData);
+	        	packet = new DatagramPacket(buf, buf.length, Values.multicast_restore_group_address, Values.multicast_restore_group_port);
+	        	  // CHECK RESTORE THREAD
+		        if(!getServer().getRestore_thread().hasReceivedChunkMsg(message.getFileID(), Integer.toString(message.getChunkNumber()))) {
+		            RestoreChannelThread.getMulticast_restore_socket().send(packet);
+		            System.out.println(Thread.currentThread().getName() + " sent CHUNK message after processing GETCHUNK message");
+		        } else {
+		            System.out.println(getName() + " SOMEBODY BEAT ME TO THE FINISH!");
+		            getServer().getRestore_thread().clearThisChunkMsg(message.getFileID(), Integer.toString(message.getChunkNumber()));
+		        }
+	        }else{
+	        	packet = new DatagramPacket(buf, buf.length, ip, Values.multicast_restore_group_port);
 	        }
+	      
 	    } else {
 	        // TODO TELL RESTORE THREAD TO IGNORE CHUNKS MESSAGES FOR THIS FILE ID AND CHUNK NUMBER
 	    }

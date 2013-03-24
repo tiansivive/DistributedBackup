@@ -2,6 +2,7 @@ package server;
 
 import java.io.IOException;
 import java.net.DatagramPacket;
+import java.net.InetAddress;
 import java.net.MulticastSocket;
 import java.util.HashMap;
 
@@ -106,5 +107,11 @@ public class RestoreChannelThread extends ChannelThread{
 	 public static void setMulticast_restore_socket(
 	         MulticastSocket multicast_restore_socket){
 	     RestoreChannelThread.multicast_restore_socket = multicast_restore_socket;
+	}
+
+	@Override
+	protected void processRequest(String request, InetAddress ip){
+		// TODO Auto-generated method stub
+		
 	}
 }

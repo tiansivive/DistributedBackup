@@ -4,6 +4,7 @@ import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.net.DatagramPacket;
+import java.net.InetAddress;
 import java.net.MulticastSocket;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -104,7 +105,7 @@ public class BackupChannelThread extends ChannelThread {
 	                    < Integer.parseInt(fields[4])){ //checks if this chunk has a ready been stored the number of desired times
 	            	
 	            	this.getServer().getControl_thread().incrementBackupNumberOfChunk(fields[2], Integer.parseInt(fields[3]));
-	            	
+	            	sendStoredMessage(fields);
 	                String data = request.substring(endOfHeaderIndex+4);
 	                String fileSeparator = System.getProperty("file.separator");
 	                File directory = new File(Values.directory_to_backup_files+fileSeparator+fields[2]);
@@ -115,7 +116,7 @@ public class BackupChannelThread extends ChannelThread {
 	                        System.out.println("Error creating file directory.");
 	                    } else {
 
-	                    	sendStoredMessage(fields);
+	                    	//sendStoredMessage(fields);
 	                        if(!output.createNewFile()) {
 	                            System.out.println("Chunk already backed up.");
 	                        } else {
@@ -188,5 +189,11 @@ public class BackupChannelThread extends ChannelThread {
 	}
 	public static void setMulticast_backup_socket(MulticastSocket multicast_backup_socket) {
 		BackupChannelThread.multicast_backup_socket = multicast_backup_socket;
+	}
+
+	@Override
+	protected void processRequest(String request, InetAddress ip){
+		// TODO Auto-generated method stub
+		
 	}
 }
