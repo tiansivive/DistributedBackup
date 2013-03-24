@@ -391,15 +391,12 @@ public class Server{
 	private void run_threads(){
 
 		Thread.currentThread().setName("MainThread");
-		control_thread = ControlChannelThread.getInstance();
-		backup_thread = BackupChannelThread.getInstance();
-		restore_thread = RestoreChannelThread.getInstance();
+		control_thread = ControlChannelThread.getInstance(this);
+		backup_thread = BackupChannelThread.getInstance(this);
+		restore_thread = RestoreChannelThread.getInstance(this);
 
-		control_thread.setServer(this);
 		control_thread.start();
-		backup_thread.setServer(this);
 		backup_thread.start();
-		restore_thread.setServer(this);
 		restore_thread.start();
 	}
 

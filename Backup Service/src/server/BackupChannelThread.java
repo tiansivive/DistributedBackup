@@ -8,8 +8,6 @@ import java.net.InetAddress;
 import java.net.MulticastSocket;
 import java.util.ArrayList;
 import java.util.HashMap;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
 
 import protocols.ProtocolMessage;
 import constantValues.Values;
@@ -27,7 +25,7 @@ public class BackupChannelThread extends ChannelThread {
     
     private HashMap<String,ArrayList<Integer>> backedFiles;
        
-	private BackupChannelThread() {
+	private BackupChannelThread(Server server) {
 		
 		this.setName("BackupChannelThread");
 	    backupDirectory = new File(Values.directory_to_backup_files);
@@ -36,11 +34,12 @@ public class BackupChannelThread extends ChannelThread {
 	        System.exit(-1);
 	    }
 	    backedFiles = new HashMap<String,ArrayList<Integer>>();
+	    setServer(server);
 	}
 
-	public static BackupChannelThread getInstance() {
+	public static BackupChannelThread getInstance(Server server) {
 	    if(instance == null) {
-	        instance = new BackupChannelThread();
+	        instance = new BackupChannelThread(server);
 	    }
 	    return instance;
 	}

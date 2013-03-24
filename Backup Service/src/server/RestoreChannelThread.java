@@ -24,13 +24,14 @@ public class RestoreChannelThread extends ChannelThread{
 	private HashMap<String,String> receivedChunkMessages;
 	private HashMap<String, Set<Integer>> requestedFileRestorations;
 	
-	private RestoreChannelThread(){
+	private RestoreChannelThread(Server server){
 	    receivedChunkMessages = new HashMap<String,String>();
+	    setServer(server);
 	}
 	
-	public static RestoreChannelThread getInstance(){
+	public static RestoreChannelThread getInstance(Server server){
 	    if(instance == null){
-	        instance = new RestoreChannelThread();
+	        instance = new RestoreChannelThread(server);
 	    }
 	    return instance;
 	}

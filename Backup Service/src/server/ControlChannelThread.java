@@ -89,7 +89,7 @@ public class ControlChannelThread extends ChannelThread{
 		}	
 	}
 
- 	private ControlChannelThread(){
+ 	private ControlChannelThread(Server server){
 		setName("ControlThread");
 		completelyBackedUpFiles = new HashSet<String>();
 		this.doNotReplyMessages = new HashMap<String, Set<Integer>>();
@@ -97,12 +97,13 @@ public class ControlChannelThread extends ChannelThread{
 		storedMessagesReceived = new HashMap<InetAddress,Map<String,ArrayList<Integer>>>();
 		ourRequestedBackups = new HashMap<String,Map<Integer,ReplicationInfo> >();
 		
+		setServer(server);
 		this.initializeBackgroundMaintenanceProcesses();
 	}
 	
-	public static ControlChannelThread getInstance(){
+	public static ControlChannelThread getInstance(Server server){
 	    if(instance == null) {
-	        instance = new ControlChannelThread();
+	        instance = new ControlChannelThread(server);
 	    }
 	    return instance;
 	}
