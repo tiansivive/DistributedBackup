@@ -50,28 +50,6 @@ public class ControlChannelThread extends ChannelThread{
 	
 	private HashSet<String> completelyBackedUpFiles; 
 	private Thread backupRequestsCompletion_Supervisor;
-	//private CleanerThread storedMessagesInformation_Cleaner;
-	
-	/*
-	private class CleanerThread extends Thread{
-		
-		protected boolean readyToWork;
-			
-		public CleanerThread(){
-			this.readyToWork = false;
-		}
-		public synchronized boolean isReadyToWork(){
-			return this.readyToWork;
-		}
-		public synchronized void setReadyToWork(boolean rtw){
-			this.readyToWork = rtw;
-		}
-		@Override
-		public void run() {
-			// TODO Auto-generated method stub
-		}
-	}
-	*/
 	
 	private class ReplicationInfo {
 		
@@ -472,8 +450,6 @@ public class ControlChannelThread extends ChannelThread{
 				                        + "\nCurrent replication: " + pair.getValue().currentReplication
 				                        + "\nHas reached desired replication\n-------------------------------\n");
 				                chunksIterator.remove();
-				                //TODO does nothing for now, 
-				                //CANNOT remove chunks from the requestBackups Hashmap as if a stored message is then received then it'll reset that chunk's currentReplication status to 0
 				            }
 				        }
 
@@ -494,46 +470,6 @@ public class ControlChannelThread extends ChannelThread{
 		backupRequestsCompletion_Supervisor.setName("SupervisorDaemonThread");
 		backupRequestsCompletion_Supervisor.setDaemon(true);
 		backupRequestsCompletion_Supervisor.start();
-				
-		
-		/*storedMessagesInformation_Cleaner = new CleanerThread(){
-	
-			public void run(){
-				
-				try {
-					while(true){
-		
-						if(numberOfBackupsPerChunk.isEmpty()){
-							synchronized(this){
-								System.out.println(this.getName() + " is waiting");
-								this.wait();
-							}
-						}else{
-							synchronized(this){
-								this.wait(60000); //Wakes up every minute if 
-							}
-							System.out.println(this.getName() + " is woke up\n"
-									  						  + "Checkig if clean-up can begin...");
-							if(isReadyToWork()){
-								
-								numberOfBackupsPerChunk.clear();
-								//TODO anything else needing cleanup?
-							}
-						}
-						this.setReadyToWork(true);		
-					}
-				} catch (InterruptedException e) {
-					// TODO Auto-generated catch block
-					e.printStackTrace();
-				}
-			}
-
-		};
-		
-		storedMessagesInformation_Cleaner.setName("CleanerDaemonThread");
-		storedMessagesInformation_Cleaner.setDaemon(true);
-		storedMessagesInformation_Cleaner.start();
-		*/
 	}
 	
 	
