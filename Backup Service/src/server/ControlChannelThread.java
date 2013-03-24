@@ -234,7 +234,7 @@ public class ControlChannelThread extends ChannelThread{
 	            packet = new DatagramPacket(buf, buf.length, Values.multicast_restore_group_address, Values.multicast_restore_group_port);
 	            
 	            // CHECK RESTORE THREAD
-	            if(!getServer().getRestore_thread().hasReceivedChunkMsg(message.getFileID(), Integer.toString(message.getChunkNumber()))) {
+	            if(!getServer().getRestore_thread().hasReceivedChunkMsg(message.getFileID(), message.getChunkNumber())) {
 	                RestoreChannelThread.getMulticast_restore_socket().send(packet);
 	                System.out.println(Thread.currentThread().getName() + " sent CHUNK message after processing GETCHUNK message");
 	            } else {

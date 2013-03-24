@@ -4,6 +4,7 @@ import java.io.IOException;
 import java.net.DatagramPacket;
 import java.net.InetAddress;
 import java.net.MulticastSocket;
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Set;
@@ -21,11 +22,11 @@ public class RestoreChannelThread extends ChannelThread{
 	 *  */
 	private static MulticastSocket multicast_restore_socket;
 	private static RestoreChannelThread instance;
-	private HashMap<String,String> receivedChunkMessages;
+	private HashMap<String,Set<Integer>> receivedChunkMessages; //Map<FileId,Set<ChunkNumbers>>
 	private HashMap<String,Set<Integer>> requestedFileRestorations;
 	
 	private RestoreChannelThread(Server server){
-	    receivedChunkMessages = new HashMap<String,String>();
+	    receivedChunkMessages = new HashMap<String,Set<Integer>>();
 	    requestedFileRestorations = new HashMap<String,Set<Integer>>();
 	    setServer(server);
 	}
@@ -77,19 +78,23 @@ public class RestoreChannelThread extends ChannelThread{
 
 	        if(requestHeader.matches(headerPattern)) {
 	            String[] fields = requestHeader.split(" ");
+	            
+	            synchronized (receivedChunkMessages) {
+	                try {
+	                    receivedChunkMessages.get(fields[2]).add(Integer.parseInt(fields[3]));
+	                } catch (NullPointerException e) {
+	                    Set<Integer> chunksInfo = new HashSet<Integer>();
+	                    chunksInfo.add(Integer.parseInt(fields[3]));
+	                    receivedChunkMessages.put(fields[2],chunksInfo);
+	                }
+                    System.out.println("RECEIVED CHUNK MESSAGE!! SAVING IT ON THE HASHMAP!");
+                }
+	            
 	            byte[] data = request.substring(endOfHeaderIndex+4).getBytes();
-
-	            if(this.requestedFileRestorations.containsKey(fields[2])){
-	                
-	                synchronized (this.requestedFileRestorations) {
-                       
-                    }
-	                
-	            }
-	            synchronized (this) {
-	                receivedChunkMessages.put(fields[2],fields[3]);
-	            }
-	       	    System.out.println("RECEIVED CHUNK MESSAGE!! SAVING IT ON THE HASHMAP!");
+	            
+	            synchronized (requestedFileRestorations) {
+                    
+                }
 	        } else {
 	            System.out.println("Invalid header. Ignoring request");
 	        }
@@ -98,18 +103,19 @@ public class RestoreChannelThread extends ChannelThread{
 	    }
 	}
 
-	public synchronized boolean hasReceivedChunkMsg(String fileId, String chunkNum) {
-	    try {
-	        return receivedChunkMessages.get(fileId).contains(chunkNum);
-	    } catch (Exception e) {
-	        return false;
-	        // TODO: handle exception
+	public boolean hasReceivedChunkMsg(String fileId, int chunkNum) {
+	    synchronized (receivedChunkMessages) {
+	        try {
+	            return receivedChunkMessages.get(fileId).contains(chunkNum);
+	        } catch (Exception e) {
+	            return false;
+	        }
 	    }
 	}
 
 	public void clearThisChunkMsg(String fileId, String chunkNum) {
 	    synchronized (receivedChunkMessages) {
-	        receivedChunkMessages.remove(fileId+":"+chunkNum);
+	        
         }
 	 }
 
