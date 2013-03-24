@@ -75,15 +75,15 @@ public class BackupChannelThread extends ChannelThread {
 	        if(requestHeader.matches(headerPattern)) {
 
 	            try {
-	                // waiting between 200 and 400 miliseconds before deciding if it will save the chunk
-	                int delay = Server.rand.nextInt(201)+200;
+	                // waiting between 400 and 500 miliseconds before deciding if it will save the chunk
+	                int delay = Server.rand.nextInt(101)+400;
 	                Thread.sleep(delay);
 	            } catch (InterruptedException e1) {
 	                e1.printStackTrace();
                 }
 
 	            if(getServer().getControl_thread().getNumberOfBackupsFromChunkNo(fields[2], Integer.parseInt(fields[3])) 
-	                    < Integer.parseInt(fields[4])){ //checks if this chunk has a ready been stored the number of desired times
+	                    < Integer.parseInt(fields[4])){ //checks if this chunk has already been stored the number of desired times
 	            	
 	                String data = request.substring(endOfHeaderIndex+4);
 	                String fileSeparator = System.getProperty("file.separator");
@@ -136,14 +136,16 @@ public class BackupChannelThread extends ChannelThread {
 			byte[] buf = ProtocolMessage.toBytes(head, null);
 			DatagramPacket packet = new DatagramPacket(buf, buf.length, Values.multicast_control_group_address, Values.multicast_control_group_port);
 
+			/*
 			// waiting between 0 and 400 miliseconds before sending response
 			int delay = Server.rand.nextInt(Values.backup_thread_response_delay+1);
 			Thread.sleep(delay);
+			*/
 			
 			ControlChannelThread.getMulticast_control_socket().send(packet);
 			System.out.println(Thread.currentThread().getName() + " sent STORED message");
 			
-		} catch (IOException | InterruptedException e) {
+		} catch (IOException e) {
 			e.printStackTrace();
 		}
 	}
