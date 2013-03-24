@@ -228,7 +228,6 @@ public class Server{
 	        }
 	    }
 	    System.out.println("\n\n----------------------FINISHED PROCESSING FILES------------------------\n");
-	    send_files();
 	}
 	
 	private void backupNewFile() {
@@ -328,6 +327,7 @@ public class Server{
 	                chunkNum++;
 	            } else {
 	                synchronized (this) {
+	                    send_files();
 	                    System.out.println(Thread.currentThread().getName()+" WAITING");
 	                    wait();
 	                }
@@ -356,19 +356,21 @@ public class Server{
 	    this.getControl_thread().notifyDaemonSupervisor();//Some improving needs to be done
 	}
 
-	public synchronized void send_file(String fileId, String chunkNumber) {
-	    String key = fileId + ":" + chunkNumber;
-	    if(packetsQueue.containsKey(key)){
-	        int delay = Server.rand.nextInt(201)+Values.server_sending_packets_delay;
-	        try {
-	            Thread.sleep(delay);
-	            BackupChannelThread.getMulticast_backup_socket().send(packetsQueue.get(key));
-	            System.out.println("----------------Sent PUTCHUNK message----------------\n");
-	        } catch (IOException | InterruptedException e) {
-	            e.printStackTrace();
-	            // TODO what to do here?
+	public void send_file(String fileId, String chunkNumber) {
+	    synchronized (packetsQueue) {
+	        String key = fileId + ":" + chunkNumber;
+	        if(packetsQueue.containsKey(key)){
+	            int delay = Server.rand.nextInt(201)+Values.server_sending_packets_delay;
+	            try {
+	                Thread.sleep(delay);
+	                BackupChannelThread.getMulticast_backup_socket().send(packetsQueue.get(key));
+	                System.out.println("----------------Sent PUTCHUNK message----------------\n");
+	            } catch (IOException | InterruptedException e) {
+	                e.printStackTrace();
+	                // TODO what to do here?
+	            }
 	        }
-	    }
+        }
 	}
 	
 	public static boolean fromThisMachine(InetAddress src){

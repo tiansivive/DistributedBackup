@@ -14,10 +14,7 @@ import java.util.Iterator;
 import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Set;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
 
-import protocols.Body;
 import protocols.Header;
 import protocols.ProtocolMessage;
 import constantValues.Values;
@@ -266,7 +263,7 @@ public class ControlChannelThread extends ChannelThread{
 	            packet = new DatagramPacket(buf, buf.length, srcIP, Values.multicast_restore_group_port);
                 RestoreChannelThread.getMulticast_restore_socket().send(packet);
 	        }
-
+	        input.close(); // TODO HERE RIGHT?
 	    } else {
 	        // TODO TELL RESTORE THREAD TO IGNORE CHUNKS MESSAGES FOR THIS FILE ID AND CHUNK NUMBER
 	    }
