@@ -130,9 +130,7 @@ public class ControlChannelThread extends ChannelThread{
 	protected void processRequest(String msg, InetAddress src){
 
 
-	    System.out.println("\n----------------------------------------\n"
-	    			+ "Control Channel - " + Thread.currentThread().getName()
-	    			+ "- Message received:\n" + msg);
+	    System.out.println("Control Channel - "+Thread.currentThread().getName()+"- Message received:" + msg);
         int endOfHeaderIndex;
         if((endOfHeaderIndex = msg.indexOf("\r\n\r\n")) != -1) { // find the end of the header
             String requestHeader = msg.substring(0, endOfHeaderIndex);
@@ -234,6 +232,7 @@ public class ControlChannelThread extends ChannelThread{
 	            
 	            buf = ProtocolMessage.toBytes(head, chunkData);
 	            packet = new DatagramPacket(buf, buf.length, Values.multicast_restore_group_address, Values.multicast_restore_group_port);
+	            
 	            // CHECK RESTORE THREAD
 	            if(!getServer().getRestore_thread().hasReceivedChunkMsg(message.getFileID(), Integer.toString(message.getChunkNumber()))) {
 	                RestoreChannelThread.getMulticast_restore_socket().send(packet);
@@ -242,6 +241,7 @@ public class ControlChannelThread extends ChannelThread{
 	                System.out.println(getName() + " SOMEBODY BEAT ME TO THE FINISH!");
 	                getServer().getRestore_thread().clearThisChunkMsg(message.getFileID(), Integer.toString(message.getChunkNumber()));
 	            }
+	            
 	        }else{
 	            head = new String(Values.do_not_reply_to_getchunk_message + " "
                         + Values.protocol_version + " "
@@ -263,7 +263,7 @@ public class ControlChannelThread extends ChannelThread{
 	            packet = new DatagramPacket(buf, buf.length, srcIP, Values.multicast_restore_group_port);
                 RestoreChannelThread.getMulticast_restore_socket().send(packet);
 	        }
-	        input.close(); // TODO HERE RIGHT?
+	        input.close();
 	    } else {
 	        // TODO TELL RESTORE THREAD TO IGNORE CHUNKS MESSAGES FOR THIS FILE ID AND CHUNK NUMBER
 	    }
@@ -417,7 +417,6 @@ public class ControlChannelThread extends ChannelThread{
 			backupRequestsCompletion_Supervisor.notifyAll();
 		}	
 	}
-
 	
 	private void initializeBackgroundMaintenanceProcesses(){
 		
@@ -502,11 +501,15 @@ public class ControlChannelThread extends ChannelThread{
 				        String fileID = (String) filesIterator.next();
 				        Iterator<Entry<Integer, ReplicationInfo>> chunksIterator = ourRequestedBackups.get(fileID).entrySet().iterator();
 				        Set<Integer> chunksWithoutDesiredReplication = new HashSet<Integer>();
-
+				        boolean hasAtLeastOneReplica = true;
+				        
 				        while(chunksIterator.hasNext()){
 
 				            Map.Entry<Integer, ReplicationInfo> pair = (Entry<Integer, ReplicationInfo>) chunksIterator.next();
-
+				            if(pair.getValue().currentReplication == 0) {
+				                hasAtLeastOneReplica = false;
+				            }
+				            
 				            if(!pair.getValue().hasReachedDesiredReplication()){
 				                chunksWithoutDesiredReplication.add(pair.getKey());
 				                System.out.println("\n----------------------------------------------------------\n" 
@@ -525,6 +528,10 @@ public class ControlChannelThread extends ChannelThread{
 				                        + "\nHas reached desired replication\n-------------------------------\n");
 				                chunksIterator.remove();
 				            }
+				        }
+				        
+				        if(hasAtLeastOneReplica) {
+				            getServer().hasReachedMinimumReplicationDegree(fileID);
 				        }
 
 				        synchronized (chunksWithMissingReplicas) {

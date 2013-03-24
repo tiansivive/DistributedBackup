@@ -22,10 +22,11 @@ public class RestoreChannelThread extends ChannelThread{
 	private static MulticastSocket multicast_restore_socket;
 	private static RestoreChannelThread instance;
 	private HashMap<String,String> receivedChunkMessages;
-	private HashMap<String, Set<Integer>> requestedFileRestorations;
+	private HashMap<String,Set<Integer>> requestedFileRestorations;
 	
 	private RestoreChannelThread(Server server){
 	    receivedChunkMessages = new HashMap<String,String>();
+	    requestedFileRestorations = new HashMap<String,Set<Integer>>();
 	    setServer(server);
 	}
 	
@@ -55,7 +56,7 @@ public class RestoreChannelThread extends ChannelThread{
         }
 	}
 	
-	public void addRequestForFileRestorarion(String fileId, String chunkNum){
+	public void addRequestForFileRestoration(String fileId, String chunkNum){
 	    synchronized (requestedFileRestorations) {
             if(!requestedFileRestorations.containsKey(fileId)) {
                 Set<Integer> chunks = new HashSet<Integer>(); 

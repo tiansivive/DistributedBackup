@@ -184,58 +184,58 @@ public class Server{
 	private void restoreFile() {
 
 	    System.out.print("File name contains: ");
-	    String regex;
-	    /*
+	    String substr;
+	    boolean atLeastOneMatch = false;
+	    
 	    try {
-	        regex = bufferedReader.readLine();
-	        
+	        substr = bufferedReader.readLine();
+
 	        ArrayList<BackedUpFile> matchedBackedUpFiles = new ArrayList<BackedUpFile>();
 	        Iterator<Entry<String,BackedUpFile>> it = backedUpFiles.entrySet().iterator();
-	        
+
 	        while (it.hasNext()) {
 	            Map.Entry<String,BackedUpFile> pair = (Map.Entry<String,BackedUpFile>)it.next();
-	            if(pair.getValue().path.matches(regex)) {
+	            if(pair.getValue().path.contains(substr)) {
 	                System.out.println(matchedBackedUpFiles.size()+" - "+pair.getValue().path);
 	                matchedBackedUpFiles.add(pair.getValue());
+	                if(!atLeastOneMatch) {
+	                    atLeastOneMatch = true;
+	                }
 	            }
 	        }
-	            
-	        System.out.print("Insert index: ");
-	        int pathIndex = Integer.parseInt(bufferedReader.readLine());
-	        BackedUpFile file = matchedBackedUpFiles.get(pathIndex);
 	        
-	        
-	        for(int i = 0; i < file.numberOfChunks; i++) {
-	            String head = Values.send_chunk_data_message_identifier + " "
-                        + Values.protocol_version + " "
-                        + fileIdentifier + " "
-                        + i;
-	        }
-	        
+	        if(atLeastOneMatch) {
+	            System.out.print("Insert index: ");
+	            int pathIndex = Integer.parseInt(bufferedReader.readLine());
+	            BackedUpFile file = matchedBackedUpFiles.get(pathIndex);
 
-	            for(int i = 0; i < numberOfChunks; i++) {
-	                String head = Values.send_chunk_data_message_identifier + " "
+	            for(int i = 0; i < file.numberOfChunks; i++) {
+	                String head = Values.recover_chunk_control_message_identifier + " "
 	                        + Values.protocol_version + " "
-	                        + fileIdentifier + " "
+	                        + file.fileId + " "
 	                        + i;
 
 	                byte[] buf = ProtocolMessage.toBytes(head, null);
 	                DatagramPacket packet = new DatagramPacket(buf, buf.length, Values.multicast_control_group_address, Values.multicast_control_group_port);
-	                getRestore_thread().addRequestForFileRestorarion(fileIdentifier, Integer.toString(i));
+	                getRestore_thread().addRequestForFileRestoration(file.fileId, Integer.toString(i));
 	                ControlChannelThread.getMulticast_control_socket().send(packet);
 	                Thread.sleep(Values.server_sending_packets_delay);
 	            }
 	        } else {
-	            System.out.println("THAT FILE DOESN'T EXIST! TRY AGAIN.");
+	            System.out.println("NO MATCHES. TRY AGAIN.\n");
 	        }
 	    } catch (IOException | InterruptedException e1) {
 	        e1.printStackTrace();
 	    }
-	    */
 	}
 
+	public void hasReachedMinimumReplicationDegree(String fileId) {
+	    if(backedUpFiles.containsKey(fileId)) {
+	        backedUpFiles.get(fileId).hasAtLeastOneReplica = true;
+	    }
+	}
+	
 	private void backupConfigFiles() {
-	    // go through each file and build the packets
 	    for(FileToBackup f : config.filesToBackup) {
 	        File file = new File(f.path);
 	        if(file.exists()) {
@@ -276,8 +276,10 @@ public class Server{
                        
                         process_file(file, Integer.parseInt(replicationDegreeStr));
                         
-                        for(int i = 0; i < numberChunks; i++) {
-                            send_file(fileId, String.valueOf(i));
+                        if(numberOfChunksProcessed != 0) {
+                            send_files();
+                            numberOfChunksProcessed = 0;
+                            packetsQueue.clear();
                         }
                     } else {
                         System.out.println("Invalid replication degree.");
@@ -289,7 +291,6 @@ public class Server{
                 System.out.println("The file doesn't exist. Check the path and try again.");
             }
         } catch (IOException e) {
-            // TODO Auto-generated catch block
             e.printStackTrace();
         }
 	    
@@ -328,7 +329,7 @@ public class Server{
 	                + "\nChunks: " + (numberChunks = (int)Math.ceil(file.length()/64000.0))
 	                + "\n");
 	        
-	        backedUpFiles.put(fileIdentifier,new BackedUpFile(file.getAbsolutePath(), false, numberChunks));
+	        backedUpFiles.put(fileIdentifier,new BackedUpFile(fileIdentifier,file.getAbsolutePath(), false, numberChunks));
 
 	        while ((chunkSize = fileInputStream.read(dataBytes)) != -1){
 
@@ -395,10 +396,9 @@ public class Server{
 	            try {
 	                Thread.sleep(delay);
 	                BackupChannelThread.getMulticast_backup_socket().send(packetsQueue.get(key));
-	                System.out.println("----------------Sent PUTCHUNK message----------------\n");
+	                System.out.println("----------------Sent PUTCHUNK message----------------");
 	            } catch (IOException | InterruptedException e) {
 	                e.printStackTrace();
-	                // TODO what to do here?
 	            }
 	        }
         }
@@ -467,9 +467,11 @@ public class Server{
 
 	private class BackedUpFile {
 	    public String path;
+	    public String fileId;
 	    public boolean hasAtLeastOneReplica;
 	    public int numberOfChunks;
-	    public BackedUpFile(String path,boolean hator, int numberChunks) {
+	    public BackedUpFile(String fileId, String path, boolean hator, int numberChunks) {
+	        this.fileId = fileId;
 	        this.path = path;
 	        hasAtLeastOneReplica = hator;
 	        this.numberOfChunks = numberChunks;
