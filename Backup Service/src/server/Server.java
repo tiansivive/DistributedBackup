@@ -10,7 +10,7 @@ import com.google.gson.*;
 
 import constantValues.Values;
 
-//
+//g
 public class Server{
 
 	private static ControlChannelThread control_thread;
@@ -26,12 +26,12 @@ public class Server{
 	private int numberOfChunksProcessed;
 	private Config config;
 	private BufferedReader bufferedReader;
-	private HashMap<String,Boolean> backedUpPaths;
+	private HashMap<String,BackedUpFile> backedUpFiles;
 	
 	
 	private Server() {
 	    packetsQueue = new HashMap<String,DatagramPacket>();
-	    backedUpPaths = new HashMap<String,Boolean>();
+	    backedUpFiles = new HashMap<String,BackedUpFile>();
 	    Server.rand = new Random();
 	    Server.machineAddresses = new ArrayList<InetAddress>();
         Server.thisMachineAddress = null;
@@ -126,7 +126,8 @@ public class Server{
 	}
 	
 	private void listBackedFiles() {
-	    Iterator<Entry<String,Boolean>> it = backedUpPaths.entrySet().iterator();
+	    Iterator<Entry<String,BackedUpFile>> it = backedUpFiles.entrySet().iterator();
+	    /*
 	    int counter = 1;
 	    while (it.hasNext()) {
             Map.Entry<String,Boolean> pair = (Map.Entry<String,Boolean>)it.next();
@@ -134,6 +135,7 @@ public class Server{
                 System.out.printf("%d - %s\n",counter++,pair.getKey());
             }
 	    }
+	    */
 	}
 
 	private void deleteFile() {
@@ -181,16 +183,35 @@ public class Server{
 
 	private void restoreFile() {
 
-	    System.out.print("Path of file: ");
-	    String filePath;
+	    System.out.print("File name contains: ");
+	    String regex;
+	    /*
 	    try {
-	        filePath = bufferedReader.readLine();
-
-	        File file = new File(filePath);
-
-	        if(file.exists()) {
-	            int numberOfChunks = (int)Math.ceil(file.length()/64000.0);
-	            String fileIdentifier = HashString.getFileIdentifier(file);
+	        regex = bufferedReader.readLine();
+	        
+	        ArrayList<BackedUpFile> matchedBackedUpFiles = new ArrayList<BackedUpFile>();
+	        Iterator<Entry<String,BackedUpFile>> it = backedUpFiles.entrySet().iterator();
+	        
+	        while (it.hasNext()) {
+	            Map.Entry<String,BackedUpFile> pair = (Map.Entry<String,BackedUpFile>)it.next();
+	            if(pair.getValue().path.matches(regex)) {
+	                System.out.println(matchedBackedUpFiles.size()+" - "+pair.getValue().path);
+	                matchedBackedUpFiles.add(pair.getValue());
+	            }
+	        }
+	            
+	        System.out.print("Insert index: ");
+	        int pathIndex = Integer.parseInt(bufferedReader.readLine());
+	        BackedUpFile file = matchedBackedUpFiles.get(pathIndex);
+	        
+	        
+	        for(int i = 0; i < file.numberOfChunks; i++) {
+	            String head = Values.send_chunk_data_message_identifier + " "
+                        + Values.protocol_version + " "
+                        + fileIdentifier + " "
+                        + i;
+	        }
+	        
 
 	            for(int i = 0; i < numberOfChunks; i++) {
 	                String head = Values.send_chunk_data_message_identifier + " "
@@ -210,6 +231,7 @@ public class Server{
 	    } catch (IOException | InterruptedException e1) {
 	        e1.printStackTrace();
 	    }
+	    */
 	}
 
 	private void backupConfigFiles() {
@@ -290,6 +312,7 @@ public class Server{
 	        byte[] dataBytes = new byte[64000];
 	        int chunkSize = -1;
 	        int chunkNum = 0;
+	        int numberChunks;
 
 	        System.out.println("\n\n------------------------PROCESSING NEW FILE------------------------\n"
 	                + "\nFilename: " + file.getName() 
@@ -297,8 +320,10 @@ public class Server{
 	                + "\nProtocol version: " + Values.protocol_version
 	                + "\nFile identifier: " + fileIdentifier
 	                + "\nReplication degree: " + replicationDegree
-	                + "\nChunks: " + (int)Math.ceil(file.length()/64000.0)
+	                + "\nChunks: " + (numberChunks = (int)Math.ceil(file.length()/64000.0))
 	                + "\n");
+	        
+	        backedUpFiles.put(fileIdentifier,new BackedUpFile(file.getAbsolutePath(), false, numberChunks));
 
 	        while ((chunkSize = fileInputStream.read(dataBytes)) != -1){
 
@@ -319,7 +344,6 @@ public class Server{
 	                        + replicationDegree;
 
 	                Server.control_thread.updateRequestedBackups(new Header(head));
-	                backedUpPaths.put(file.getAbsolutePath(), false);
 	                byte[] buf = ProtocolMessage.toBytes(head, dataBytes);
 
 	                DatagramPacket packet = new DatagramPacket(buf, buf.length, Values.multicast_backup_group_address, Values.multicast_backup_group_port);
@@ -436,6 +460,16 @@ public class Server{
 		Server.restore_thread = restore_thread;
 	}
 
+	private class BackedUpFile {
+	    public String path;
+	    public boolean hasAtLeastOneReplica;
+	    public int numberOfChunks;
+	    public BackedUpFile(String path,boolean hator, int numberChunks) {
+	        this.path = path;
+	        hasAtLeastOneReplica = hator;
+	        this.numberOfChunks = numberChunks;
+	    }
+	}
 	
 	private class FileToBackup {
         public String path;

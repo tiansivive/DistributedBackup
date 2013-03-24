@@ -8,7 +8,7 @@ public class HashString {
     
     static public String getFileIdentifier(File f) {
         
-        String fileIdentifierString = new String(f.getName() + f.length() + f.getParent() + f.lastModified());        
+        String fileIdentifierString = new String(f.getAbsolutePath() + f.length() + f.getParent() + f.lastModified());        
         MessageDigest md = null;
         try {
             md = MessageDigest.getInstance("SHA-256");
