@@ -100,6 +100,7 @@ public class BackupChannelThread extends ChannelThread {
 	                    ControlChannelThread cct = getServer().getControl_thread();
 	                    if(cct.getNumberOfBackupsFromChunkNo(fields[2], Integer.parseInt(fields[3])) < Integer.parseInt(fields[4])) { // we save it
 	                        
+	                        sendStoredMessage(fields);
 	                        String data = request.substring(endOfHeaderIndex+4);
 	                        String fileSeparator = System.getProperty("file.separator");
 	                        File directory = new File(Values.directory_to_backup_files+fileSeparator+fields[2]);
@@ -114,7 +115,6 @@ public class BackupChannelThread extends ChannelThread {
 	                                fop.flush();
 	                                fop.close();
 	                                cct.incrementReplicationOfOtherChunk(fields[2], Integer.parseInt(fields[3]));
-	                                sendStoredMessage(fields);
 	                                
 	                                try {
                                         backedFiles.get(fields[2]).add(new Integer(fields[3]));

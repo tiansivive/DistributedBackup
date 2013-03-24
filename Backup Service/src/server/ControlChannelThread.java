@@ -47,9 +47,30 @@ public class ControlChannelThread extends ChannelThread{
 	 */
 	private HashMap<String,Map<Integer,Integer> > replicationDegreeOfOthersChunks; //map<ChunkNo,numOfBackups>
 	private HashMap<InetAddress,Map<String,ArrayList<Integer>>> storedMessagesReceived;
+	private HashMap<String, Set<Integer> > doNotReplyMessages;
 	
 	private HashSet<String> completelyBackedUpFiles; 
 	private Thread backupRequestsCompletion_Supervisor;
+	private CleanerThread storedMessagesInformation_Cleaner;
+	
+	 private class CleanerThread extends Thread{
+         
+         protected boolean readyToWork;
+                 
+         public CleanerThread(){
+                 this.readyToWork = false;
+         }
+         public synchronized boolean isReadyToWork(){
+                 return this.readyToWork;
+         }
+         public synchronized void setReadyToWork(boolean rtw){
+                 this.readyToWork = rtw;
+         }
+         @Override
+         public void run() {
+                 // TODO Auto-generated method stub
+         }
+	 }
 	
 	private class ReplicationInfo {
 		
@@ -71,6 +92,7 @@ public class ControlChannelThread extends ChannelThread{
  	private ControlChannelThread(){
 		setName("ControlThread");
 		completelyBackedUpFiles = new HashSet<String>();
+		this.doNotReplyMessages = new HashMap<String, Set<Integer>>();
 		replicationDegreeOfOthersChunks = new HashMap<String, Map<Integer,Integer>>();
 		storedMessagesReceived = new HashMap<InetAddress,Map<String,ArrayList<Integer>>>();
 		ourRequestedBackups = new HashMap<String,Map<Integer,ReplicationInfo> >();
@@ -127,7 +149,7 @@ public class ControlChannelThread extends ChannelThread{
                     }
                     case "GETCHUNK":
                     {
-                        process_GetChunkMessage(message);
+                        process_GetChunkMessage(message,src);
                         break;
                     }
                     case "DELETE":
@@ -140,6 +162,11 @@ public class ControlChannelThread extends ChannelThread{
                         process_RemovedMessage(message);
                         break;
                     }
+                    case "DONOTREPLY":
+                    {
+                        process_DoNotReplyMessage(message);
+                        break;
+                    }
                     default:
                     {
                         System.out.println("Unrecognized message type. Ignoring request");
@@ -150,13 +177,78 @@ public class ControlChannelThread extends ChannelThread{
                     e.printStackTrace();
                 }
                 System.out.println("CONTROL CHANNEL - MESSAGE RECEIVED: "+requestHeader);
-                
+
             } else {
                 System.out.println("Unrecognized message type. Ignoring request");
             }
         } else {
             System.out.println("No <CRLF><CRLF> detected. Ignoring request");
         }
+	}
+
+	private  void process_DoNotReplyMessage(Header message){
+
+	    HashSet<Integer> tmp = new HashSet<Integer>();
+
+	    if(!this.doNotReplyMessages.containsKey(message.getFileID())){
+	        synchronized(this){
+	            this.doNotReplyMessages.put(message.getFileID(), tmp);
+	        }
+	    }
+	    synchronized (this){
+	        this.doNotReplyMessages.get(message.getFileID()).add(message.getChunkNumber());
+	    }
+
+	}
+
+	private void process_GetChunkMessage(Header message, InetAddress ip) throws IOException, FileNotFoundException, InterruptedException{
+
+	    File chunk = new File(Values.directory_to_backup_files+ "/" + message.getFileID() + "/chunk_" + message.getChunkNumber());
+
+	    if(chunk.exists()) {
+
+	        // waiting between 0 and 400 miliseconds before sending response
+	        int delay = Server.rand.nextInt(Values.restore_channel_send_chunk_delay+1);
+	        Thread.sleep(delay);
+
+	        byte[] chunkData = new byte[64000];
+	        FileInputStream input = new FileInputStream(chunk);
+	        int chunkSize = input.read(chunkData);
+
+	        if(chunkSize < 64000) {
+	            byte[] temp = new byte[chunkSize];
+	            System.arraycopy(chunkData, 0, temp, 0, chunkSize);
+	            chunkData = temp;
+	        }
+
+	        String head = null;
+	        byte[] buf = null;
+	        DatagramPacket packet;
+	        if(Values.protocol_version == "1.0"){
+
+	            head = new String(Values.send_chunk_data_message_identifier + " "
+	                    + Values.protocol_version + " "
+	                    +  message.getFileID() + " "
+	                    + message.getChunkNumber());
+	            
+	            ProtocolMessage.toBytes(head, chunkData);
+	            packet = new DatagramPacket(buf, buf.length, Values.multicast_restore_group_address, Values.multicast_restore_group_port);
+	            // CHECK RESTORE THREAD
+	            if(!getServer().getRestore_thread().hasReceivedChunkMsg(message.getFileID(), Integer.toString(message.getChunkNumber()))) {
+	                RestoreChannelThread.getMulticast_restore_socket().send(packet);
+	                System.out.println(Thread.currentThread().getName() + " sent CHUNK message after processing GETCHUNK message");
+	            } else {
+	                System.out.println(getName() + " SOMEBODY BEAT ME TO THE FINISH!");
+	                getServer().getRestore_thread().clearThisChunkMsg(message.getFileID(), Integer.toString(message.getChunkNumber()));
+	            }
+	        }else{
+	            packet = new DatagramPacket(buf, buf.length, ip, Values.multicast_restore_group_port);
+	        }
+
+	    } else {
+	        // TODO TELL RESTORE THREAD TO IGNORE CHUNKS MESSAGES FOR THIS FILE ID AND CHUNK NUMBER
+	    }
+
 	}
 
 	private void process_StoredMessage(String[] requestFields, InetAddress src) throws InterruptedException{
@@ -207,58 +299,17 @@ public class ControlChannelThread extends ChannelThread{
 	        } else { // someone else's backup
 	            if(itMustIncrement) {
 	                incrementReplicationOfOtherChunk(fileId, chunkNum);
+	                synchronized(storedMessagesInformation_Cleaner){
+	                    this.storedMessagesInformation_Cleaner.notifyAll();
+	                }
+	                Thread.sleep(50); //wakes up the Cleaner, waits that it changes it's own readyToWork status to true and then changes it to false
+	                this.storedMessagesInformation_Cleaner.setReadyToWork(false);
 	                debugMessage += src.toString()+" RECEIVED STORED OF OTHER\n";
 	            }
 	        }
 	    }
 	    System.out.println(debugMessage);
 	}
-
-
-	private void process_GetChunkMessage(Header message) throws IOException, FileNotFoundException, InterruptedException{
-
-	    File chunk = new File(Values.directory_to_backup_files+ "/" + message.getFileID() + "/chunk_" + message.getChunkNumber());
-
-	    if(chunk.exists()) {
-
-	        byte[] chunkData = new byte[64000];
-	        FileInputStream input = new FileInputStream(chunk);
-
-	        int chunkSize = input.read(chunkData);
-
-	        if(chunkSize < 64000) {
-	            byte[] temp = new byte[chunkSize];
-	            System.arraycopy(chunkData, 0, temp, 0, chunkSize);
-	            chunkData = temp;
-	        }
-
-	        String head = new String(Values.send_chunk_data_message_identifier + " "
-	                + Values.protocol_version + " "
-	                +  message.getFileID() + " "
-	                + message.getChunkNumber());
-
-
-	        byte[] buf = ProtocolMessage.toBytes(head, chunkData);
-	        DatagramPacket packet = new DatagramPacket(buf, buf.length, Values.multicast_restore_group_address, Values.multicast_restore_group_port);
-
-	        // waiting between 0 and 400 miliseconds before sending response
-	        int delay = Server.rand.nextInt(Values.restore_channel_send_chunk_delay+1);
-	        Thread.sleep(delay);
-
-	        // CHECK RESTORE THREAD
-	        if(!getServer().getRestore_thread().hasReceivedChunkMsg(message.getFileID(), Integer.toString(message.getChunkNumber()))) {
-	            RestoreChannelThread.getMulticast_restore_socket().send(packet);
-	            System.out.println(Thread.currentThread().getName() + " sent CHUNK message after processing GETCHUNK message");
-	        } else {
-	            System.out.println(getName() + " SOMEBODY BEAT ME TO THE FINISH!");
-	            getServer().getRestore_thread().clearThisChunkMsg(message.getFileID(), Integer.toString(message.getChunkNumber()));
-	        }
-	    } else {
-	        // TODO TELL RESTORE THREAD TO IGNORE CHUNKS MESSAGES FOR THIS FILE ID AND CHUNK NUMBER
-	    }
-
-	}
-
 
 	private void process_DeleteMessage(Header message){
 
@@ -466,14 +517,51 @@ public class ControlChannelThread extends ChannelThread{
 				}
 			}
 		};
-		
+
 		backupRequestsCompletion_Supervisor.setName("SupervisorDaemonThread");
 		backupRequestsCompletion_Supervisor.setDaemon(true);
 		backupRequestsCompletion_Supervisor.start();
+
+		storedMessagesInformation_Cleaner = new CleanerThread(){
+
+		    public void run(){
+
+		        try {
+		            while(true){
+
+		                if(replicationDegreeOfOthersChunks.isEmpty()){
+		                    synchronized(this){
+		                        System.out.println(this.getName() + " is waiting");
+		                        this.wait();
+		                    }
+		                }else{
+		                    synchronized(this){
+		                        this.wait(60000); //Wakes up every minute
+		                    }
+		                    System.out.println(this.getName() + " has woken up\n"
+		                            + "Checkig if clean-up can begin...");
+		                    if(isReadyToWork()){
+		                        replicationDegreeOfOthersChunks.clear();
+		                        // TODO After the last stored message it should store the table into a file and clear it!!! 
+		                        // TODO anything else needing cleanup?
+		                    }
+		                }
+		                this.setReadyToWork(true);              
+		            }
+		        } catch (InterruptedException e) {
+		            // TODO Auto-generated catch block
+		            e.printStackTrace();
+		        }
+		    }
+
+		};
+		storedMessagesInformation_Cleaner.setName("CleanerDaemonThread");
+		storedMessagesInformation_Cleaner.setDaemon(true);
+		storedMessagesInformation_Cleaner.start();
 	}
-	
-	
-	
+
+
+
 	/**
 	 * Init_socket.
 	 *
