@@ -22,23 +22,23 @@ public class Server{
 	
 	public static Random rand;
 	
-	private HashMap<String,DatagramPacket> packets_sent;
+	private HashMap<String,DatagramPacket> packetsQueue;
+	private int numberOfChunksProcessed;
 	private Config config;
 	private BufferedReader bufferedReader;
 	private HashMap<String,Boolean> backedUpPaths;
 	
 	
 	private Server() {
-	    packets_sent = new HashMap<String,DatagramPacket>();
+	    packetsQueue = new HashMap<String,DatagramPacket>();
 	    backedUpPaths = new HashMap<String,Boolean>();
 	    Server.rand = new Random();
 	    Server.machineAddresses = new ArrayList<InetAddress>();
         Server.thisMachineAddress = null;
         bufferedReader = null;
+        numberOfChunksProcessed = 0;
         
-        // not a very elegant solution, but it works
         Enumeration<NetworkInterface> nets;
-        
         
         try {
             nets = NetworkInterface.getNetworkInterfaces();
@@ -180,23 +180,36 @@ public class Server{
 	}
 
 	private void restoreFile() {
-	    File file = new File("walking/tiger.jpg");
-	    String fileIdentifier = HashString.getFileIdentifier(file);
-	    
-	    String head = Values.send_chunk_data_message_identifier + " "
-	            + Values.protocol_version + " "
-	            + fileIdentifier + " "
-	            + 0;
 
-	    byte[] buf = ProtocolMessage.toBytes(head, null);
-	    DatagramPacket packet = new DatagramPacket(buf, buf.length, Values.multicast_control_group_address, Values.multicast_control_group_port);
-	    
+	    System.out.print("Path of file: ");
+	    String filePath;
 	    try {
-            ControlChannelThread.getMulticast_control_socket().send(packet);
-        } catch (IOException e) {
-            // TODO Auto-generated catch block
-            e.printStackTrace();
-        }
+	        filePath = bufferedReader.readLine();
+
+	        File file = new File(filePath);
+
+	        if(file.exists()) {
+	            int numberOfChunks = (int)Math.ceil(file.length()/64000.0);
+	            String fileIdentifier = HashString.getFileIdentifier(file);
+
+	            for(int i = 0; i < numberOfChunks; i++) {
+	                String head = Values.send_chunk_data_message_identifier + " "
+	                        + Values.protocol_version + " "
+	                        + fileIdentifier + " "
+	                        + i;
+
+	                byte[] buf = ProtocolMessage.toBytes(head, null);
+	                DatagramPacket packet = new DatagramPacket(buf, buf.length, Values.multicast_control_group_address, Values.multicast_control_group_port);
+	                getRestore_thread().addRequestForFileRestorarion(fileIdentifier, Integer.toString(i));
+	                ControlChannelThread.getMulticast_control_socket().send(packet);
+	                Thread.sleep(Values.server_sending_packets_delay);
+	            }
+	        } else {
+	            System.out.println("THAT FILE DOESN'T EXIST! TRY AGAIN.");
+	        }
+	    } catch (IOException | InterruptedException e1) {
+	        e1.printStackTrace();
+	    }
 	}
 
 	private void backupConfigFiles() {
@@ -260,68 +273,74 @@ public class Server{
 	    File[] files = directory.listFiles();
 	    for(File f : files) {
 	        if(f.isDirectory()) {
-				process_directory(f, replicationDegree);
-			} else {
-				if(!f.isHidden()) {
-					process_file(f, replicationDegree);
-				}
-			}
-		}
+	            process_directory(f, replicationDegree);
+	        } else {
+	            if(!f.isHidden()) {
+	                process_file(f, replicationDegree);
+	            }
+	        }
+	    }
 	}
 
 	private void process_file(final File file, final int replicationDegree) {
 
-		String fileIdentifier = HashString.getFileIdentifier(file);
-			
-		try {
-			FileInputStream fileInputStream = new FileInputStream(file);
-			byte[] dataBytes = new byte[64000];
-			int chunkSize = -1;
-			int chunkNum = 0;
-			
-			System.out.println("\n\n------------------------PROCESSING NEW FILE------------------------\n"
-					+ "\nFilename: " + file.getName() 
-					+ "\nSize: " + file.length() 
-					+ "\nProtocol version: " + Values.protocol_version
-					+ "\nFile identifier: " + fileIdentifier
-					+ "\nReplication degree: " + replicationDegree
-					+ "\nChunks: " + (int)Math.ceil(file.length()/64000.0)
-					+ "\n");
-			
-			while ((chunkSize = fileInputStream.read(dataBytes)) != -1){
-				
-			    if(chunkSize < 64000) {
-			        byte[] temp = new byte[chunkSize];
-			        System.arraycopy(dataBytes, 0, temp, 0, chunkSize);
-			        dataBytes = temp;
-			    }
-				
-				System.out.print("CREATING CHUNK #" + chunkNum);
-				System.out.println(" WITH SIZE: " + chunkSize + " BYTES");
-				
-				String head = Values.backup_chunk_data_message_identifier + " "
-									+ Values.protocol_version + " "
-									+ fileIdentifier + " "
-									+ chunkNum + " "
-									+ replicationDegree;
-				
-				Server.control_thread.updateRequestedBackups(new Header(head));
-				backedUpPaths.put(file.getAbsolutePath(), false);
-				byte[] buf = ProtocolMessage.toBytes(head, dataBytes);
-				
-				DatagramPacket packet = new DatagramPacket(buf, buf.length, Values.multicast_backup_group_address, Values.multicast_backup_group_port);
-				packets_sent.put(fileIdentifier+":"+chunkNum, packet);
-				chunkNum++;
-			}
-			fileInputStream.close();
-		} catch (IOException e) {
-			e.printStackTrace();
-			//System.exit(-1);
-		}
+	    String fileIdentifier = HashString.getFileIdentifier(file);
+
+	    try {
+	        FileInputStream fileInputStream = new FileInputStream(file);
+	        byte[] dataBytes = new byte[64000];
+	        int chunkSize = -1;
+	        int chunkNum = 0;
+
+	        System.out.println("\n\n------------------------PROCESSING NEW FILE------------------------\n"
+	                + "\nFilename: " + file.getName() 
+	                + "\nSize: " + file.length() 
+	                + "\nProtocol version: " + Values.protocol_version
+	                + "\nFile identifier: " + fileIdentifier
+	                + "\nReplication degree: " + replicationDegree
+	                + "\nChunks: " + (int)Math.ceil(file.length()/64000.0)
+	                + "\n");
+
+	        while ((chunkSize = fileInputStream.read(dataBytes)) != -1){
+
+	            if(numberOfChunksProcessed++ < 500) {
+	                if(chunkSize < 64000) {
+	                    byte[] temp = new byte[chunkSize];
+	                    System.arraycopy(dataBytes, 0, temp, 0, chunkSize);
+	                    dataBytes = temp;
+	                }
+
+	                System.out.print("CREATING CHUNK #" + chunkNum);
+	                System.out.println(" WITH SIZE: " + chunkSize + " BYTES");
+
+	                String head = Values.backup_chunk_data_message_identifier + " "
+	                        + Values.protocol_version + " "
+	                        + fileIdentifier + " "
+	                        + chunkNum + " "
+	                        + replicationDegree;
+
+	                Server.control_thread.updateRequestedBackups(new Header(head));
+	                backedUpPaths.put(file.getAbsolutePath(), false);
+	                byte[] buf = ProtocolMessage.toBytes(head, dataBytes);
+
+	                DatagramPacket packet = new DatagramPacket(buf, buf.length, Values.multicast_backup_group_address, Values.multicast_backup_group_port);
+	                packetsQueue.put(fileIdentifier+":"+chunkNum, packet);
+	                chunkNum++;
+	            } else {
+	                synchronized (this) {
+	                    System.out.println(Thread.currentThread().getName()+" WAITING");
+	                    wait();
+	                }
+	            }
+	        }
+	        fileInputStream.close();
+	    } catch (IOException | InterruptedException e) {
+	        e.printStackTrace();
+	    }
 	}
-	
+
 	private void send_files() {
-	    Iterator<Entry<String,DatagramPacket>> it = packets_sent.entrySet().iterator();
+	    Iterator<Entry<String,DatagramPacket>> it = packetsQueue.entrySet().iterator();
 	    while (it.hasNext()) {
 	        Map.Entry<String,DatagramPacket> pair = (Map.Entry<String,DatagramPacket>)it.next();
 	        int delay = Server.rand.nextInt(201)+Values.server_sending_packets_delay;
@@ -339,11 +358,11 @@ public class Server{
 
 	public synchronized void send_file(String fileId, String chunkNumber) {
 	    String key = fileId + ":" + chunkNumber;
-	    if(packets_sent.containsKey(key)){
+	    if(packetsQueue.containsKey(key)){
 	        int delay = Server.rand.nextInt(201)+Values.server_sending_packets_delay;
 	        try {
 	            Thread.sleep(delay);
-	            BackupChannelThread.getMulticast_backup_socket().send(packets_sent.get(key));
+	            BackupChannelThread.getMulticast_backup_socket().send(packetsQueue.get(key));
 	            System.out.println("----------------Sent PUTCHUNK message----------------\n");
 	        } catch (IOException | InterruptedException e) {
 	            e.printStackTrace();

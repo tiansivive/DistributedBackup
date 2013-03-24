@@ -203,10 +203,10 @@ public class ControlChannelThread extends ChannelThread{
 
 	}
 
-	private void process_GetChunkMessage(Header message, InetAddress ip) throws IOException, FileNotFoundException, InterruptedException{
+	private void process_GetChunkMessage(Header message, InetAddress srcIP) throws IOException, FileNotFoundException, InterruptedException{
 
-		
-	    File chunk = new File(Values.directory_to_backup_files+ "/" + message.getFileID() + "/chunk_" + message.getChunkNumber());
+		String fileSeparator = System.getProperty("file.separator");
+	    File chunk = new File(Values.directory_to_backup_files+fileSeparator+ message.getFileID() +fileSeparator+ "chunk_" + message.getChunkNumber());
 
 	    if(chunk.exists()) {
 
@@ -233,8 +233,8 @@ public class ControlChannelThread extends ChannelThread{
 	                    + Values.protocol_version + " "
 	                    +  message.getFileID() + " "
 	                    + message.getChunkNumber());
-
-	            ProtocolMessage.toBytes(head, chunkData);
+	            
+	            buf = ProtocolMessage.toBytes(head, chunkData);
 	            packet = new DatagramPacket(buf, buf.length, Values.multicast_restore_group_address, Values.multicast_restore_group_port);
 	            // CHECK RESTORE THREAD
 	            if(!getServer().getRestore_thread().hasReceivedChunkMsg(message.getFileID(), Integer.toString(message.getChunkNumber()))) {
@@ -245,7 +245,25 @@ public class ControlChannelThread extends ChannelThread{
 	                getServer().getRestore_thread().clearThisChunkMsg(message.getFileID(), Integer.toString(message.getChunkNumber()));
 	            }
 	        }else{
-	            packet = new DatagramPacket(buf, buf.length, ip, Values.multicast_restore_group_port);
+	            head = new String(Values.do_not_reply_to_getchunk_message + " "
+                        + Values.protocol_version + " "
+                        +  message.getFileID() + " "
+                        + message.getChunkNumber());
+	           
+	            buf = ProtocolMessage.toBytes(head, null);
+	            packet = new DatagramPacket(buf, buf.length, Values.multicast_restore_group_address, Values.multicast_restore_group_port);
+	            RestoreChannelThread.getMulticast_restore_socket().send(packet);
+	            
+	            Thread.sleep(250);
+	            
+	            head = new String(Values.send_chunk_data_message_identifier + " "
+                        + Values.protocol_version + " "
+                        +  message.getFileID() + " "
+                        + message.getChunkNumber());
+	            
+	            buf = ProtocolMessage.toBytes(head, chunkData);
+	            packet = new DatagramPacket(buf, buf.length, srcIP, Values.multicast_restore_group_port);
+                RestoreChannelThread.getMulticast_restore_socket().send(packet);
 	        }
 
 	    } else {
@@ -417,6 +435,9 @@ public class ControlChannelThread extends ChannelThread{
 				try {
 				    while(true){
 				        if(ourRequestedBackups.isEmpty()){
+				            synchronized (getServer()) {
+                                getServer().notifyAll();
+                            }
 				            synchronized (this) {
 				                System.out.println(this.getName() + " is going to wait...");
 	                            wait();
