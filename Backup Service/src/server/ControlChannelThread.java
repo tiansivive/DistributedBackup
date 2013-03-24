@@ -471,6 +471,7 @@ public class ControlChannelThread extends ChannelThread{
 				                        + pair.getValue().desiredReplication
 				                        + "\nCurrent replication: " + pair.getValue().currentReplication
 				                        + "\nHas reached desired replication\n-------------------------------\n");
+				                chunksIterator.remove();
 				                //TODO does nothing for now, 
 				                //CANNOT remove chunks from the requestBackups Hashmap as if a stored message is then received then it'll reset that chunk's currentReplication status to 0
 				            }

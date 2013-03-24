@@ -80,47 +80,59 @@ public class BackupChannelThread extends ChannelThread {
 	                Thread.sleep(delay);
 	            } catch (InterruptedException e1) {
 	                e1.printStackTrace();
-                }
-
-	            if(getServer().getControl_thread().getNumberOfBackupsFromChunkNo(fields[2], Integer.parseInt(fields[3])) 
-	                    < Integer.parseInt(fields[4])){ //checks if this chunk has already been stored the number of desired times
-	            	
-	                String data = request.substring(endOfHeaderIndex+4);
-	                String fileSeparator = System.getProperty("file.separator");
-	                File directory = new File(Values.directory_to_backup_files+fileSeparator+fields[2]);
-	                File output = new File(Values.directory_to_backup_files+fileSeparator+fields[2]+fileSeparator+"chunk_"+fields[3]);
-
-	                try {
-	                    if(!directory.mkdirs() && !directory.exists()) {
-	                        System.out.println("Error creating file directory.");
-	                    } else {
-
-	                        if(!output.createNewFile()) {
-	                            System.out.println("Chunk already backed up.");
-	                        } else {
-	                            FileOutputStream fop = new FileOutputStream(output);
-	                            fop.write(data.getBytes());
-	                            fop.flush();
-	                            fop.close();
-	                            getServer().getControl_thread().incrementReplicationOfOtherChunk(fields[2], Integer.parseInt(fields[3]));
-
-	                            synchronized (backedFiles) { // prevent multiple access to the hashmap
-	                                if(backedFiles.containsKey(fields[2])) {
-	                                    backedFiles.get(fields[2]).add(new Integer(fields[3]));
-	                                } else {
-	                                    backedFiles.put(fields[2], new ArrayList<Integer>());
-	                                    backedFiles.get(fields[2]).add(new Integer(fields[3]));
-	                                }
-	                            }
-	                        }
-	                        sendStoredMessage(fields);
-	                    }
-	                } catch (IOException e) {
-	                    e.printStackTrace();
-	                }
-	            } else {
-	                System.out.println("Chunk already has the desired replication degree.");
 	            }
+
+	            boolean saveIt = false;
+	            
+	            synchronized (backedFiles) {
+	                ArrayList<Integer> chunksBackedUp = backedFiles.get(fields[2]);
+	                if(chunksBackedUp != null) {
+	                    if(chunksBackedUp.contains(fields[3])) { // we have backed it up before
+	                        sendStoredMessage(fields);
+	                    } else {
+	                        saveIt = true;
+	                    }
+	                } else { // we have no chunk from this file
+	                    saveIt = true;
+	                }
+
+	                if(saveIt) {
+	                    ControlChannelThread cct = getServer().getControl_thread();
+	                    if(cct.getNumberOfBackupsFromChunkNo(fields[2], Integer.parseInt(fields[3])) < Integer.parseInt(fields[4])) { // we save it
+	                        
+	                        String data = request.substring(endOfHeaderIndex+4);
+	                        String fileSeparator = System.getProperty("file.separator");
+	                        File directory = new File(Values.directory_to_backup_files+fileSeparator+fields[2]);
+	                        File output = new File(Values.directory_to_backup_files+fileSeparator+fields[2]+fileSeparator+"chunk_"+fields[3]);
+
+	                        try {
+	                            if(!directory.mkdirs() && !directory.exists()) {
+	                                System.out.println("ERROR CREATING FILE DIRECTORY.");
+	                            } else {
+	                                FileOutputStream fop = new FileOutputStream(output);
+	                                fop.write(data.getBytes());
+	                                fop.flush();
+	                                fop.close();
+	                                cct.incrementReplicationOfOtherChunk(fields[2], Integer.parseInt(fields[3]));
+	                                
+	                                try {
+                                        backedFiles.get(fields[2]).add(new Integer(fields[3]));
+                                    } catch (NullPointerException e) {
+                                        ArrayList<Integer> chunks = new ArrayList<Integer>();
+                                        chunks.add(new Integer(fields[3]));
+                                        backedFiles.put(fields[2],chunks);
+                                    }
+	                            }
+	                        } catch (IOException e) {
+	                            e.printStackTrace();
+	                        }
+	                    } else {
+	                        System.out.println("CHUNK ALREADY HAS DESIRED REPLICATION DEGREE - NO CHUNK BACKUP HERE");
+	                    }
+	                } else {
+	                    System.out.println("WE'VE SAVED THIS CHUNK BEFORE. JUST SENDING STORED MESSAGE.");
+	                }
+	            } 
 	        } else {
 	            System.out.println("Invalid header. Ignoring request");
 	        }
