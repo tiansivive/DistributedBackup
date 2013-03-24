@@ -87,7 +87,7 @@ public class BackupChannelThread extends ChannelThread {
 	            synchronized (backedFiles) {
 	                ArrayList<Integer> chunksBackedUp = backedFiles.get(fields[2]);
 	                if(chunksBackedUp != null) {
-	                    if(chunksBackedUp.contains(fields[3])) { // we have backed it up before
+	                    if(chunksBackedUp.contains(Integer.parseInt(fields[3]))) { // we have backed it up before
 	                        sendStoredMessage(fields);
 	                    } else {
 	                        saveIt = true;
@@ -114,6 +114,7 @@ public class BackupChannelThread extends ChannelThread {
 	                                fop.flush();
 	                                fop.close();
 	                                cct.incrementReplicationOfOtherChunk(fields[2], Integer.parseInt(fields[3]));
+	                                sendStoredMessage(fields);
 	                                
 	                                try {
                                         backedFiles.get(fields[2]).add(new Integer(fields[3]));
