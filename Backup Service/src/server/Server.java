@@ -249,7 +249,12 @@ public class Server{
 	            System.out.println("\nThe file/dir "+file.getAbsolutePath()+" doesn't exist!");
 	        }
 	    }
-	    System.out.println("\n\n----------------------FINISHED PROCESSING FILES------------------------\n");
+	    if(numberOfChunksProcessed != 0) {
+	        send_files();
+	        numberOfChunksProcessed = 0;
+	        packetsQueue.clear();
+	    }
+	    System.out.println("----------------------FINISHED PROCESSING FILES------------------------");
 	}
 	
 	private void backupNewFile() {

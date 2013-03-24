@@ -453,6 +453,7 @@ public class ControlChannelThread extends ChannelThread{
 				            } else {
 				                synchronized(getServer().getControl_thread()){
 				                    ourRequestedBackups.clear();
+				                    
 				                }
 				                delay = 500;
 				            }
