@@ -330,6 +330,8 @@ public class Server{
 	                    send_files();
 	                    System.out.println(Thread.currentThread().getName()+" WAITING");
 	                    wait();
+	                    numberOfChunksProcessed = 0;
+	                    packetsQueue.clear();
 	                }
 	            }
 	        }
