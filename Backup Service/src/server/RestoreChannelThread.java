@@ -32,11 +32,12 @@ public class RestoreChannelThread extends ChannelThread{
 	private class RestoreInfo {
 	    public String path;
 	    public Set<Integer> chunks;
+	    public int numberChunks;
 	    
-	    public RestoreInfo(String path, int chunkNum) {
+	    public RestoreInfo(String path, int numberChunks) {
 	        chunks = new HashSet<Integer>();
-	        chunks.add(chunkNum);
 	        this.path = path;
+	        this.numberChunks = numberChunks;
 	    }
 	}
 	
@@ -77,12 +78,10 @@ public class RestoreChannelThread extends ChannelThread{
         }
 	}
 	
-	public void addRequestForFileRestoration(String fileId, String path, String chunkNum){
+	public void addRequestForFileRestoration(String fileId, String path, int numberChunks){
 	    synchronized (requestedFileRestorations) {
             if(!requestedFileRestorations.containsKey(fileId)) {
-                requestedFileRestorations.put(fileId, new RestoreInfo(path, Integer.parseInt(chunkNum)));
-            } else {
-                requestedFileRestorations.get(fileId).chunks.add(Integer.parseInt(chunkNum));
+                requestedFileRestorations.put(fileId, new RestoreInfo(path, numberChunks));
             }
         }
 	}
@@ -106,37 +105,36 @@ public class RestoreChannelThread extends ChannelThread{
 	                    receivedChunkMessages.put(fields[2],chunksInfo);
 	                }
                     System.out.println("RECEIVED CHUNK MESSAGE!! SAVING IT ON THE HASHMAP!");
-                }
-	            
-	            synchronized (requestedFileRestorations) {
-	                try {
-	                    if(requestedFileRestorations.get(fields[2]).chunks.contains(Integer.parseInt(fields[3]))) {
-	                        byte[] data = request.substring(endOfHeaderIndex+4).getBytes();
-	                        String fileSeparator = System.getProperty("file.separator");
-	                        File directory = new File(Values.directory_to_restore_files+fileSeparator+fields[2]);
-	                        File output = new File(Values.directory_to_restore_files+fileSeparator+fields[2]+fileSeparator+"chunk_"+fields[3]);
-	                        
-	                        try {
-	                            if(!directory.mkdirs() && !directory.exists()) {
-	                                System.out.println("ERROR CREATING RESTORED FILE DIRECTORY.");
-	                            } else {
-	                                FileOutputStream fop = new FileOutputStream(output);
-	                                fop.write(data);
-	                                fop.flush();
-	                                fop.close();
-	                                RestoreInfo info = requestedFileRestorations.get(fields[2]);
-	                                info.chunks.remove(Integer.parseInt(fields[3]));
-	                                if(info.chunks.isEmpty()) { // has received all chunks for this file
-	                                    incomingRequestsPool.execute(new FileFusion(directory,info.path));
-	                                }
-	                            }
-	                        } catch (IOException e) {
-	                            e.printStackTrace();
-	                        }
-	                    }
-	                } catch (NullPointerException e) { } // we didn't do the request, ignore
 	            }
-	                
+
+	            synchronized (requestedFileRestorations) {
+	                if(requestedFileRestorations.containsKey(fields[2])) { // we made a request for this file
+	                    byte[] data = request.substring(endOfHeaderIndex+4).getBytes();
+	                    String fileSeparator = System.getProperty("file.separator");
+	                    File directory = new File(Values.directory_to_restore_files+fileSeparator+fields[2]);
+	                    File output = new File(Values.directory_to_restore_files+fileSeparator+fields[2]+fileSeparator+"chunk_"+fields[3]);
+
+	                    try {
+	                        if(!directory.mkdirs() && !directory.exists()) {
+	                            System.out.println("ERROR CREATING RESTORED FILE DIRECTORY.");
+	                        } else {
+	                            FileOutputStream fop = new FileOutputStream(output);
+	                            fop.write(data);
+	                            fop.flush();
+	                            fop.close();
+	                            RestoreInfo info = requestedFileRestorations.get(fields[2]);
+	                            info.chunks.add(Integer.parseInt(fields[3]));
+	                            
+	                            if(info.chunks.size() == info.numberChunks) { // has received all chunks for this file
+	                                incomingRequestsPool.execute(new FileFusion(directory,info.path));
+	                                requestedFileRestorations.remove(fields[2]);
+	                            }
+	                        }
+	                    } catch (IOException e) {
+	                        e.printStackTrace();
+	                    }
+	                }
+	            }
 	        } else {
 	            System.out.println("Invalid header. Ignoring request");
 	        }

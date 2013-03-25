@@ -209,6 +209,7 @@ public class Server{
 	            int pathIndex = Integer.parseInt(bufferedReader.readLine());
 	            BackedUpFile file = matchedBackedUpFiles.get(pathIndex);
 
+	            getRestore_thread().addRequestForFileRestoration(file.fileId,file.path,file.numberOfChunks);
 	            for(int i = 0; i < file.numberOfChunks; i++) {
 	                String head = Values.recover_chunk_control_message_identifier + " "
 	                        + Values.protocol_version + " "
@@ -217,7 +218,6 @@ public class Server{
 
 	                byte[] buf = ProtocolMessage.toBytes(head, null);
 	                DatagramPacket packet = new DatagramPacket(buf, buf.length, Values.multicast_control_group_address, Values.multicast_control_group_port);
-	                getRestore_thread().addRequestForFileRestoration(file.fileId,file.path,Integer.toString(i));
 	                ControlChannelThread.getMulticast_control_socket().send(packet);
 	                Thread.sleep(Values.server_sending_packets_delay);
 	            }
@@ -333,7 +333,7 @@ public class Server{
 
 	        while ((chunkSize = fileInputStream.read(dataBytes)) != -1){
 
-	            if(numberOfChunksProcessed++ < 500) {
+	            if(numberOfChunksProcessed < 500) {
 	                if(chunkSize < 64000) {
 	                    byte[] temp = new byte[chunkSize];
 	                    System.arraycopy(dataBytes, 0, temp, 0, chunkSize);
@@ -355,6 +355,7 @@ public class Server{
 	                DatagramPacket packet = new DatagramPacket(buf, buf.length, Values.multicast_backup_group_address, Values.multicast_backup_group_port);
 	                packetsQueue.put(fileIdentifier+":"+chunkNum, packet);
 	                chunkNum++;
+	                numberOfChunksProcessed++;
 	            } else {
 	                synchronized (this) {
 	                    send_files();
