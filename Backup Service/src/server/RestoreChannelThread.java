@@ -107,15 +107,19 @@ public class RestoreChannelThread extends ChannelThread{
 	    synchronized (receivedChunkMessages) {
 	        try {
 	            return receivedChunkMessages.get(fileId).contains(chunkNum);
-	        } catch (Exception e) {
+	        } catch (NullPointerException e) {
 	            return false;
 	        }
 	    }
 	}
 
-	public void clearThisChunkMsg(String fileId, String chunkNum) {
+	public void clearThisChunkMsg(String fileId, int chunkNum) {
 	    synchronized (receivedChunkMessages) {
-	        
+	        try {
+	            receivedChunkMessages.get(fileId).remove(chunkNum);
+	        } catch (NullPointerException e) {
+	            // do nothing
+	        }
         }
 	 }
 

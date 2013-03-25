@@ -206,10 +206,6 @@ public class ControlChannelThread extends ChannelThread{
 
 	    if(chunk.exists()) {
 
-	        // waiting between 0 and 400 miliseconds before sending response
-	        int delay = Server.rand.nextInt(Values.restore_channel_send_chunk_delay+1);
-	        Thread.sleep(delay);
-
 	        byte[] chunkData = new byte[64000];
 	        FileInputStream input = new FileInputStream(chunk);
 	        int chunkSize = input.read(chunkData);
@@ -232,14 +228,18 @@ public class ControlChannelThread extends ChannelThread{
 	            
 	            buf = ProtocolMessage.toBytes(head, chunkData);
 	            packet = new DatagramPacket(buf, buf.length, Values.multicast_restore_group_address, Values.multicast_restore_group_port);
-	            
+
+	            // waiting between 0 and 400 miliseconds before sending response
+	            int delay = Server.rand.nextInt(Values.restore_channel_send_chunk_delay+1);
+	            Thread.sleep(delay);
+
 	            // CHECK RESTORE THREAD
 	            if(!getServer().getRestore_thread().hasReceivedChunkMsg(message.getFileID(), message.getChunkNumber())) {
 	                RestoreChannelThread.getMulticast_restore_socket().send(packet);
 	                System.out.println(Thread.currentThread().getName() + " sent CHUNK message after processing GETCHUNK message");
 	            } else {
 	                System.out.println(getName() + " SOMEBODY BEAT ME TO THE FINISH!");
-	                getServer().getRestore_thread().clearThisChunkMsg(message.getFileID(), Integer.toString(message.getChunkNumber()));
+	                getServer().getRestore_thread().clearThisChunkMsg(message.getFileID(), message.getChunkNumber());
 	            }
 	            
 	        }else{
