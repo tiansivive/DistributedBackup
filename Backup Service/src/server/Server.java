@@ -217,7 +217,7 @@ public class Server{
 
 	                byte[] buf = ProtocolMessage.toBytes(head, null);
 	                DatagramPacket packet = new DatagramPacket(buf, buf.length, Values.multicast_control_group_address, Values.multicast_control_group_port);
-	                getRestore_thread().addRequestForFileRestoration(file.fileId, Integer.toString(i));
+	                getRestore_thread().addRequestForFileRestoration(file.fileId,file.path,Integer.toString(i));
 	                ControlChannelThread.getMulticast_control_socket().send(packet);
 	                Thread.sleep(Values.server_sending_packets_delay);
 	            }

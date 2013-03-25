@@ -1,5 +1,7 @@
 package server;
 
+import java.io.File;
+import java.io.FileOutputStream;
 import java.io.IOException;
 import java.net.DatagramPacket;
 import java.net.InetAddress;
@@ -8,6 +10,8 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Set;
+
+import server.ChannelThread.RequestWorker;
 
 import constantValues.Values;
 
@@ -23,11 +27,27 @@ public class RestoreChannelThread extends ChannelThread{
 	private static MulticastSocket multicast_restore_socket;
 	private static RestoreChannelThread instance;
 	private HashMap<String,Set<Integer>> receivedChunkMessages; //Map<FileId,Set<ChunkNumbers>>
-	private HashMap<String,Set<Integer>> requestedFileRestorations;
+	private HashMap<String,RestoreInfo> requestedFileRestorations;
+	
+	private class RestoreInfo {
+	    public String path;
+	    public Set<Integer> chunks;
+	    
+	    public RestoreInfo(String path, int chunkNum) {
+	        chunks = new HashSet<Integer>();
+	        chunks.add(chunkNum);
+	        this.path = path;
+	    }
+	}
 	
 	private RestoreChannelThread(Server server){
 	    receivedChunkMessages = new HashMap<String,Set<Integer>>();
-	    requestedFileRestorations = new HashMap<String,Set<Integer>>();
+	    requestedFileRestorations = new HashMap<String,RestoreInfo>();
+	    File restoredDirectory = new File(Values.directory_to_restore_files);
+        if(!restoredDirectory.mkdir() && !restoredDirectory.exists()) {
+            System.out.println("Error creating restored directory. You may not have write permission");
+            System.exit(-1);
+        }
 	    setServer(server);
 	}
 	
@@ -57,14 +77,12 @@ public class RestoreChannelThread extends ChannelThread{
         }
 	}
 	
-	public void addRequestForFileRestoration(String fileId, String chunkNum){
+	public void addRequestForFileRestoration(String fileId, String path, String chunkNum){
 	    synchronized (requestedFileRestorations) {
             if(!requestedFileRestorations.containsKey(fileId)) {
-                Set<Integer> chunks = new HashSet<Integer>(); 
-                chunks.add(Integer.parseInt(chunkNum));
-                requestedFileRestorations.put(fileId, chunks);
+                requestedFileRestorations.put(fileId, new RestoreInfo(path, Integer.parseInt(chunkNum)));
             } else {
-                requestedFileRestorations.get(fileId).add(Integer.parseInt(chunkNum));
+                requestedFileRestorations.get(fileId).chunks.add(Integer.parseInt(chunkNum));
             }
         }
 	}
@@ -90,11 +108,35 @@ public class RestoreChannelThread extends ChannelThread{
                     System.out.println("RECEIVED CHUNK MESSAGE!! SAVING IT ON THE HASHMAP!");
                 }
 	            
-	            byte[] data = request.substring(endOfHeaderIndex+4).getBytes();
-	            
 	            synchronized (requestedFileRestorations) {
-                    
-                }
+	                try {
+	                    if(requestedFileRestorations.get(fields[2]).chunks.contains(Integer.parseInt(fields[3]))) {
+	                        byte[] data = request.substring(endOfHeaderIndex+4).getBytes();
+	                        String fileSeparator = System.getProperty("file.separator");
+	                        File directory = new File(Values.directory_to_restore_files+fileSeparator+fields[2]);
+	                        File output = new File(Values.directory_to_restore_files+fileSeparator+fields[2]+fileSeparator+"chunk_"+fields[3]);
+	                        
+	                        try {
+	                            if(!directory.mkdirs() && !directory.exists()) {
+	                                System.out.println("ERROR CREATING RESTORED FILE DIRECTORY.");
+	                            } else {
+	                                FileOutputStream fop = new FileOutputStream(output);
+	                                fop.write(data);
+	                                fop.flush();
+	                                fop.close();
+	                                RestoreInfo info = requestedFileRestorations.get(fields[2]);
+	                                info.chunks.remove(Integer.parseInt(fields[3]));
+	                                if(info.chunks.isEmpty()) { // has received all chunks for this file
+	                                    incomingRequestsPool.execute(new FileFusion(directory,info.path));
+	                                }
+	                            }
+	                        } catch (IOException e) {
+	                            e.printStackTrace();
+	                        }
+	                    }
+	                } catch (NullPointerException e) { } // we didn't do the request, ignore
+	            }
+	                
 	        } else {
 	            System.out.println("Invalid header. Ignoring request");
 	        }

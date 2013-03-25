@@ -20,7 +20,6 @@ public class BackupChannelThread extends ChannelThread {
 	 *  That is why it wasn't extracted to  the superclass and also why it has to be static.
 	 *  */
 	private static MulticastSocket multicast_backup_socket;
-    private static File backupDirectory;
     private static BackupChannelThread instance;
     
     private HashMap<String,ArrayList<Integer>> backedFiles;
@@ -28,7 +27,7 @@ public class BackupChannelThread extends ChannelThread {
 	private BackupChannelThread(Server server) {
 		
 		this.setName("BackupChannelThread");
-	    backupDirectory = new File(Values.directory_to_backup_files);
+	    File backupDirectory = new File(Values.directory_to_backup_files);
 	    if(!backupDirectory.mkdir() && !backupDirectory.exists()) {
 	        System.out.println("Error creating backups directory. You may not have write permission");
 	        System.exit(-1);
