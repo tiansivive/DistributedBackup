@@ -191,30 +191,36 @@ public class RestoreChannelThread extends ChannelThread{
 	                        synchronized (this) {
 	                            wait(delay);
 	                        }
-	                        System.out.println("RESTORE DAEMON TRYING AGAIN!!!!");
-	                        Iterator<Entry<String, RestoreInfo>> fileIterator = requestedFileRestorations.entrySet().iterator();
-	                        while(fileIterator.hasNext()) {
-	                            Map.Entry<String, RestoreInfo> pair = fileIterator.next();
-	                            Set<Integer> chunks = pair.getValue().chunks;
-	                            for(Integer chunkNum : chunks) {
-	                                String head = Values.recover_chunk_control_message_identifier + " "
-	                                        + Values.protocol_version + " "
-	                                        + pair.getKey() + " "
-	                                        + chunkNum;
+	                        synchronized (requestedFileRestorations) {
+	                            Iterator<Entry<String, RestoreInfo>> fileIterator = requestedFileRestorations.entrySet().iterator();
+	                            while(fileIterator.hasNext()) {
+	                                
+	                                Map.Entry<String, RestoreInfo> pair = fileIterator.next();
+	                                RestoreInfo restoreInfo = pair.getValue();
+	                                Set<Integer> chunks = restoreInfo.chunks;
+	                                
+	                                for(int i = 0; i < restoreInfo.numberChunks; i++) {
+	                                    if(!chunks.contains(i)) { // still didn't received this chunk
+	                                        String head = Values.recover_chunk_control_message_identifier + " "
+	                                                + Values.protocol_version + " "
+	                                                + pair.getKey() + " "
+	                                                + i;
 
-	                                byte[] buf = ProtocolMessage.toBytes(head, null);
-	                                DatagramPacket packet = new DatagramPacket(buf, buf.length, Values.multicast_control_group_address, Values.multicast_control_group_port);
-	                                ControlChannelThread.getMulticast_control_socket().send(packet);
+	                                        byte[] buf = ProtocolMessage.toBytes(head, null);
+	                                        DatagramPacket packet = new DatagramPacket(buf, buf.length, Values.multicast_control_group_address, Values.multicast_control_group_port);
+	                                        ControlChannelThread.getMulticast_control_socket().send(packet);
+	                                    }
+	                                }
+	                                
+	                                pair.getValue().numberOfRemainingAttempts--;
+	                                if(pair.getValue().numberOfRemainingAttempts == 0) {
+	                                    fileIterator.remove();
+	                                }
+	                                Thread.sleep(Values.restore_channel_send_chunk_delay);
 	                            }
-	                            pair.getValue().numberOfRemainingAttempts--;
-	                            if(pair.getValue().numberOfRemainingAttempts == 0) {
-	                                fileIterator.remove();
-	                                System.out.println("RESTORE DAEMON NO MORE TRIES!!!!!!");
-	                            }
-	                            delay *= 2;
-	                            Thread.sleep(Values.restore_channel_send_chunk_delay);
-	                        }
+                            }
 	                    }
+	                    delay *= 2;
 	                }
 	            } catch (InterruptedException | IOException e){
                     e.printStackTrace();

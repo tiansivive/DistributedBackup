@@ -47,7 +47,11 @@ public class FileFusion implements Runnable {
         
         if(finalFile.exists()) {
             System.out.println("FILE ALREADY IS RESTORED!");
-            System.exit(-1);
+            File[] chunks = file.listFiles();
+            for(File f : chunks) {
+                f.delete();
+            }
+            file.delete();
         }
  
         try {
