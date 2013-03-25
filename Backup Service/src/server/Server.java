@@ -205,21 +205,45 @@ public class Server{
 	        }
 	        
 	        if(atLeastOneMatch) {
-	            System.out.print("Insert index: ");
-	            int pathIndex = Integer.parseInt(bufferedReader.readLine());
-	            BackedUpFile file = matchedBackedUpFiles.get(pathIndex);
+	            ArrayList<Integer> indexes = new ArrayList<Integer>();
+                boolean continueRequest = false;
+                
+	            System.out.print("Insert index (-1 to cancel): ");
+	            String input = bufferedReader.readLine();
+	            
+	            try {
+	                int pathIndex = Integer.parseInt(input);
+	                if(pathIndex > -1) {
+	                    indexes.add(pathIndex);
+	                    continueRequest = true;
+	                }
+	            } catch (NumberFormatException e) {
+	                String pattern = "[0-9]{1,}(-[0-9]{1,})*"; // indexes separated by '-'
+	                if(input.matches(pattern)) {
+	                    String[] fields = input.split("-");
+	                    for(String indexStr : fields) {
+	                        indexes.add(Integer.parseInt(indexStr));
+	                    }
+	                } else {
+	                    System.out.println("INVALID INPUT");
+	                }
+	            }
 
-	            getRestore_thread().addRequestForFileRestoration(file.fileId,file.path,file.numberOfChunks);
-	            for(int i = 0; i < file.numberOfChunks; i++) {
-	                String head = Values.recover_chunk_control_message_identifier + " "
-	                        + Values.protocol_version + " "
-	                        + file.fileId + " "
-	                        + i;
+	            for(Integer index : indexes) {
+	                BackedUpFile file = matchedBackedUpFiles.get(index);
 
-	                byte[] buf = ProtocolMessage.toBytes(head, null);
-	                DatagramPacket packet = new DatagramPacket(buf, buf.length, Values.multicast_control_group_address, Values.multicast_control_group_port);
-	                ControlChannelThread.getMulticast_control_socket().send(packet);
-	                Thread.sleep(Values.server_sending_packets_delay);
+	                getRestore_thread().addRequestForFileRestoration(file.fileId,file.path,file.numberOfChunks);
+	                for(int i = 0; i < file.numberOfChunks; i++) {
+	                    String head = Values.recover_chunk_control_message_identifier + " "
+	                            + Values.protocol_version + " "
+	                            + file.fileId + " "
+	                            + i;
+
+	                    byte[] buf = ProtocolMessage.toBytes(head, null);
+	                    DatagramPacket packet = new DatagramPacket(buf, buf.length, Values.multicast_control_group_address, Values.multicast_control_group_port);
+	                    ControlChannelThread.getMulticast_control_socket().send(packet);
+	                    Thread.sleep(Values.server_sending_packets_delay);
+	                }
 	            }
 	        } else {
 	            System.out.println("NO MATCHES. TRY AGAIN.\n");
@@ -333,38 +357,37 @@ public class Server{
 
 	        while ((chunkSize = fileInputStream.read(dataBytes)) != -1){
 
-	            if(numberOfChunksProcessed < 500) {
-	                if(chunkSize < 64000) {
-	                    byte[] temp = new byte[chunkSize];
-	                    System.arraycopy(dataBytes, 0, temp, 0, chunkSize);
-	                    dataBytes = temp;
-	                }
+	            if(chunkSize < 64000) {
+                    byte[] temp = new byte[chunkSize];
+                    System.arraycopy(dataBytes, 0, temp, 0, chunkSize);
+                    dataBytes = temp;
+                }
+	            
+	            System.out.print("CREATING CHUNK #" + chunkNum);
+                System.out.println(" WITH SIZE: " + chunkSize + " BYTES");
 
-	                System.out.print("CREATING CHUNK #" + chunkNum);
-	                System.out.println(" WITH SIZE: " + chunkSize + " BYTES");
+                String head = Values.backup_chunk_data_message_identifier + " "
+                        + Values.protocol_version + " "
+                        + fileIdentifier + " "
+                        + chunkNum + " "
+                        + replicationDegree;
 
-	                String head = Values.backup_chunk_data_message_identifier + " "
-	                        + Values.protocol_version + " "
-	                        + fileIdentifier + " "
-	                        + chunkNum + " "
-	                        + replicationDegree;
+                Server.control_thread.updateRequestedBackups(new Header(head));
+                byte[] buf = ProtocolMessage.toBytes(head, dataBytes);
 
-	                Server.control_thread.updateRequestedBackups(new Header(head));
-	                byte[] buf = ProtocolMessage.toBytes(head, dataBytes);
-
-	                DatagramPacket packet = new DatagramPacket(buf, buf.length, Values.multicast_backup_group_address, Values.multicast_backup_group_port);
-	                packetsQueue.put(fileIdentifier+":"+chunkNum, packet);
-	                chunkNum++;
-	                numberOfChunksProcessed++;
-	            } else {
-	                synchronized (this) {
-	                    send_files();
-	                    System.out.println(Thread.currentThread().getName()+" WAITING");
-	                    wait();
-	                    numberOfChunksProcessed = 0;
-	                    packetsQueue.clear();
-	                }
-	            }
+                DatagramPacket packet = new DatagramPacket(buf, buf.length, Values.multicast_backup_group_address, Values.multicast_backup_group_port);
+                packetsQueue.put(fileIdentifier+":"+chunkNum, packet);
+                chunkNum++;
+	            
+                if(++numberOfChunksProcessed == Values.max_number_chunks_sent_simultaneously) {
+                    synchronized (this) {
+                        send_files();
+                        System.out.println(Thread.currentThread().getName()+" WAITING");
+                        wait();
+                        numberOfChunksProcessed = 0;
+                        packetsQueue.clear();
+                    }
+                }
 	        }
 	        fileInputStream.close();
 	    } catch (IOException | InterruptedException e) {

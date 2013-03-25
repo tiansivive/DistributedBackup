@@ -33,6 +33,8 @@ public class Values{
 	public static final int backup_thread_response_delay = 400;
 	public static final int restore_channel_send_chunk_delay = 400;
 	
+	public static final int max_number_chunks_sent_simultaneously = 500;
+	
 	public static final int number_of_attempts_to_resend_chunks = 5;
 	public static final int number_of_attempts_to_delete_files = 15;
 	

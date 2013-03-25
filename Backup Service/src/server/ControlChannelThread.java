@@ -572,6 +572,7 @@ public class ControlChannelThread extends ChannelThread{
 		                            + "Checkig if clean-up can begin...");
 		                    if(isReadyToWork()){
 		                        replicationDegreeOfOthersChunks.clear();
+		                        storedMessagesReceived.clear();
 		                        // TODO After the last stored message it should store the table into a file and clear it!!! 
 		                        // TODO anything else needing cleanup?
 		                    }
