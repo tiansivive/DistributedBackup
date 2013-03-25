@@ -6,13 +6,14 @@ import java.io.IOException;
 import java.net.DatagramPacket;
 import java.net.InetAddress;
 import java.net.MulticastSocket;
-import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.Iterator;
+import java.util.Map;
+import java.util.Map.Entry;
 import java.util.Set;
 
-import server.ChannelThread.RequestWorker;
-
+import protocols.ProtocolMessage;
 import constantValues.Values;
 
 
@@ -28,16 +29,19 @@ public class RestoreChannelThread extends ChannelThread{
 	private static RestoreChannelThread instance;
 	private HashMap<String,Set<Integer>> receivedChunkMessages; //Map<FileId,Set<ChunkNumbers>>
 	private HashMap<String,RestoreInfo> requestedFileRestorations;
+	private Thread restoreRequestCompletion_Supervisor;
 	
 	private class RestoreInfo {
 	    public String path;
 	    public Set<Integer> chunks;
 	    public int numberChunks;
+	    public int numberOfRemainingAttempts;
 	    
 	    public RestoreInfo(String path, int numberChunks) {
 	        chunks = new HashSet<Integer>();
 	        this.path = path;
 	        this.numberChunks = numberChunks;
+	        numberOfRemainingAttempts = 5;
 	    }
 	}
 	
@@ -50,6 +54,7 @@ public class RestoreChannelThread extends ChannelThread{
             System.exit(-1);
         }
 	    setServer(server);
+	    this.initializeBackgroundMaintenanceProcesses();
 	}
 	
 	public static RestoreChannelThread getInstance(Server server){
@@ -162,6 +167,64 @@ public class RestoreChannelThread extends ChannelThread{
 	        }
         }
 	 }
+
+	public void notifyDaemonSupervisor() { 
+        synchronized(restoreRequestCompletion_Supervisor){
+            restoreRequestCompletion_Supervisor.notifyAll();
+        }   
+    }
+	
+	private void initializeBackgroundMaintenanceProcesses(){
+	    
+	    restoreRequestCompletion_Supervisor = new Thread() {
+	        
+	        private int delay = 500;
+	        
+	        public void run() {
+	            try {
+	                while(true) {
+	                    if(requestedFileRestorations.isEmpty()) {
+	                        synchronized (this) {
+	                            wait();
+	                        }
+	                    } else {
+	                        synchronized (this) {
+	                            wait(delay);
+	                        }
+	                        System.out.println("RESTORE DAEMON TRYING AGAIN!!!!");
+	                        Iterator<Entry<String, RestoreInfo>> fileIterator = requestedFileRestorations.entrySet().iterator();
+	                        while(fileIterator.hasNext()) {
+	                            Map.Entry<String, RestoreInfo> pair = fileIterator.next();
+	                            Set<Integer> chunks = pair.getValue().chunks;
+	                            for(Integer chunkNum : chunks) {
+	                                String head = Values.recover_chunk_control_message_identifier + " "
+	                                        + Values.protocol_version + " "
+	                                        + pair.getKey() + " "
+	                                        + chunkNum;
+
+	                                byte[] buf = ProtocolMessage.toBytes(head, null);
+	                                DatagramPacket packet = new DatagramPacket(buf, buf.length, Values.multicast_control_group_address, Values.multicast_control_group_port);
+	                                ControlChannelThread.getMulticast_control_socket().send(packet);
+	                            }
+	                            pair.getValue().numberOfRemainingAttempts--;
+	                            if(pair.getValue().numberOfRemainingAttempts == 0) {
+	                                fileIterator.remove();
+	                                System.out.println("RESTORE DAEMON NO MORE TRIES!!!!!!");
+	                            }
+	                            delay *= 2;
+	                            Thread.sleep(Values.restore_channel_send_chunk_delay);
+	                        }
+	                    }
+	                }
+	            } catch (InterruptedException | IOException e){
+                    e.printStackTrace();
+                }
+	        }
+	    };
+	    restoreRequestCompletion_Supervisor.setName("RestoreRequestCompletionDaemonThread");
+	    restoreRequestCompletion_Supervisor.setDaemon(true);
+	    restoreRequestCompletion_Supervisor.start();
+	}
 
 	 /**
 	  * Init_socket.

@@ -227,26 +227,30 @@ public class Server{
 	                    for(String indexStr : fields) {
 	                        indexes.add(Integer.parseInt(indexStr));
 	                    }
+	                    continueRequest = true;
 	                } else {
 	                    System.out.println("INVALID INPUT");
 	                }
 	            }
 
-	            for(Integer index : indexes) {
-	                BackedUpFile file = matchedBackedUpFiles.get(index);
+	            if(continueRequest) {
+	                for(Integer index : indexes) {
+	                    BackedUpFile file = matchedBackedUpFiles.get(index);
 
-	                getRestore_thread().addRequestForFileRestoration(file.fileId,file.path,file.numberOfChunks);
-	                for(int i = 0; i < file.numberOfChunks; i++) {
-	                    String head = Values.recover_chunk_control_message_identifier + " "
-	                            + Values.protocol_version + " "
-	                            + file.fileId + " "
-	                            + i;
+	                    getRestore_thread().addRequestForFileRestoration(file.fileId,file.path,file.numberOfChunks);
+	                    for(int i = 0; i < file.numberOfChunks; i++) {
+	                        String head = Values.recover_chunk_control_message_identifier + " "
+	                                + Values.protocol_version + " "
+	                                + file.fileId + " "
+	                                + i;
 
-	                    byte[] buf = ProtocolMessage.toBytes(head, null);
-	                    DatagramPacket packet = new DatagramPacket(buf, buf.length, Values.multicast_control_group_address, Values.multicast_control_group_port);
-	                    ControlChannelThread.getMulticast_control_socket().send(packet);
-	                    Thread.sleep(Values.server_sending_packets_delay);
+	                        byte[] buf = ProtocolMessage.toBytes(head, null);
+	                        DatagramPacket packet = new DatagramPacket(buf, buf.length, Values.multicast_control_group_address, Values.multicast_control_group_port);
+	                        ControlChannelThread.getMulticast_control_socket().send(packet);
+	                        Thread.sleep(Values.server_sending_packets_delay);
+	                    }
 	                }
+	                getRestore_thread().notifyDaemonSupervisor();
 	            }
 	        } else {
 	            System.out.println("NO MATCHES. TRY AGAIN.\n");
@@ -500,7 +504,7 @@ public class Server{
 	    public BackedUpFile(String fileId, String path, boolean hator, int numberChunks) {
 	        this.fileId = fileId;
 	        this.path = path;
-	        hasAtLeastOneReplica = hator;
+	        this.hasAtLeastOneReplica = hator;
 	        this.numberOfChunks = numberChunks;
 	    }
 	}
