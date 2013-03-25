@@ -27,6 +27,7 @@ public class Server{
 	private Config config;
 	private BufferedReader bufferedReader;
 	private HashMap<String,BackedUpFile> backedUpFiles;
+	private boolean hasBackedUpConfigFiles;
 	
 	
 	private Server() {
@@ -37,6 +38,7 @@ public class Server{
         Server.thisMachineAddress = null;
         bufferedReader = null;
         numberOfChunksProcessed = 0;
+        hasBackedUpConfigFiles = false;
         
         Enumeration<NetworkInterface> nets;
         
@@ -77,7 +79,9 @@ public class Server{
         
 		while(true) {
 		    System.out.println("-----------   BACKUP SERVICE   -----------\n");
-		    System.out.println(" 1 - Backup files in config.json");
+		    if(!hasBackedUpConfigFiles) {
+		        System.out.println(" 1 - Backup files in config.json");
+		    }
 		    System.out.println(" 2 - Backup new file");
 		    System.out.println(" 3 - List backed files");
 		    System.out.println(" 4 - Restore file");
@@ -92,7 +96,10 @@ public class Server{
                 
                 switch (userInput) {
                 case "1": {
-                    backupConfigFiles();
+                    if(!hasBackedUpConfigFiles) {
+                        hasBackedUpConfigFiles = true;
+                        backupConfigFiles();
+                    }
                 }
                     break;
                 case "2": {
@@ -127,15 +134,11 @@ public class Server{
 	
 	private void listBackedFiles() {
 	    Iterator<Entry<String,BackedUpFile>> it = backedUpFiles.entrySet().iterator();
-	    /*
-	    int counter = 1;
-	    while (it.hasNext()) {
-            Map.Entry<String,Boolean> pair = (Map.Entry<String,Boolean>)it.next();
-            if(pair.getValue()){ // is backed up in another peer
-                System.out.printf("%d - %s\n",counter++,pair.getKey());
-            }
-	    }
-	    */
+
+        while (it.hasNext()) {
+            Map.Entry<String,BackedUpFile> pair = (Map.Entry<String,BackedUpFile>)it.next();
+            System.out.println(pair.getValue().path);
+        }
 	}
 
 	private void deleteFile() {
