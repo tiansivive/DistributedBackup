@@ -318,11 +318,11 @@ public class ControlChannelThread extends ChannelThread{
 	        } else { // someone else's backup
 	            if(itMustIncrement) {
 	                incrementReplicationOfOtherChunk(fileId, chunkNum);
-	                synchronized(storedMessagesInformation_Cleaner){
-	                    this.storedMessagesInformation_Cleaner.notifyAll();
-	                }
-	                Thread.sleep(50); //wakes up the Cleaner, waits that it changes it's own readyToWork status to true and then changes it to false
-	                this.storedMessagesInformation_Cleaner.setReadyToWork(false);
+//	                synchronized(storedMessagesInformation_Cleaner){
+//	                    this.storedMessagesInformation_Cleaner.notifyAll();
+//	                }
+//	                Thread.sleep(50); //wakes up the Cleaner, waits that it changes it's own readyToWork status to true and then changes it to false
+//	                this.storedMessagesInformation_Cleaner.setReadyToWork(false);
 	                debugMessage += src.toString()+" RECEIVED STORED OF OTHER\n";
 	            }
 	        }
@@ -552,6 +552,7 @@ public class ControlChannelThread extends ChannelThread{
 		backupRequestsCompletion_Supervisor.setDaemon(true);
 		backupRequestsCompletion_Supervisor.start();
 
+		/*
 		storedMessagesInformation_Cleaner = new CleanerThread(){
 
 		    public void run(){
@@ -588,6 +589,7 @@ public class ControlChannelThread extends ChannelThread{
 		storedMessagesInformation_Cleaner.setName("CleanerDaemonThread");
 		storedMessagesInformation_Cleaner.setDaemon(true);
 		storedMessagesInformation_Cleaner.start();
+		*/
 	}
 
 
