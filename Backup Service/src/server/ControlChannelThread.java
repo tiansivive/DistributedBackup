@@ -42,7 +42,7 @@ public class ControlChannelThread extends ChannelThread{
 	 * The number of replicated chunks of a given file from another machine's backup request that have been stored in other machines.
 	 * 
 	 */
-	private HashMap<String,Map<Integer,Integer> > replicationDegreeOfOthersChunks; //map<ChunkNo,numOfBackups>
+	private HashMap<String,Map<Integer,ReplicationInfo> > replicationDegreeOfOthersChunks; //map<ChunkNo,numOfBackups>
 	private HashMap<InetAddress,Map<String,ArrayList<Integer>>> storedMessagesReceived;
 	private HashMap<String, Set<Integer> > doNotReplyMessages;
 	
@@ -69,28 +69,12 @@ public class ControlChannelThread extends ChannelThread{
          }
 	 }
 	
-	private class ReplicationInfo {
-		
-		public int desiredReplication;
-		public int currentReplication;
-		public int numberOfRemainingAttempts;
-	
-		public ReplicationInfo(int desired, int current){
-			desiredReplication = desired;
-			currentReplication = current;
-			numberOfRemainingAttempts = Values.number_of_attempts_to_resend_chunks;
-		}	
-		
-		public boolean hasReachedDesiredReplication(){
-			return (currentReplication >= desiredReplication);
-		}	
-	}
 
  	private ControlChannelThread(Server server){
 		setName("ControlThread");
 		completelyBackedUpFiles = new HashSet<String>();
 		this.doNotReplyMessages = new HashMap<String, Set<Integer>>();
-		replicationDegreeOfOthersChunks = new HashMap<String, Map<Integer,Integer>>();
+		replicationDegreeOfOthersChunks = new HashMap<String, Map<Integer,ReplicationInfo>>();
 		storedMessagesReceived = new HashMap<InetAddress,Map<String,ArrayList<Integer>>>();
 		ourRequestedBackups = new HashMap<String,Map<Integer,ReplicationInfo> >();
 		
@@ -370,6 +354,36 @@ public class ControlChannelThread extends ChannelThread{
         }
 	}
 	
+	public void setChunksDesiredReplication(String fileID, int chunkNum, int desiredReplication){
+		
+		synchronized (replicationDegreeOfOthersChunks) {
+			
+			if(replicationDegreeOfOthersChunks.containsKey(fileID)){
+				if(replicationDegreeOfOthersChunks.get(fileID).containsKey(chunkNum)){					
+					replicationDegreeOfOthersChunks.get(fileID).get(chunkNum).desiredReplication = desiredReplication;
+					System.out.println(Thread.currentThread().getName() + ":\n" +
+							"FILE AND CHUNK BOTH EXIST\n" +
+							"HAS SET DESIRED REPLICATION OF CHUNK " + chunkNum + 
+							" TO " + desiredReplication +
+							"\n------------------------------------------------------------\n");			
+				}else{
+					replicationDegreeOfOthersChunks.get(fileID).put(chunkNum, new ReplicationInfo(desiredReplication,0));
+					System.out.println(Thread.currentThread().getName() + ":\n" 
+								+ "FILE EXISTS BUT CHUNK DOES NOT\nCREATED REPLICATION INFO OF CHUNK NUMBER " + chunkNum
+								+ "\n------------------------------------------------------------\n");
+				}
+			}else{
+				HashMap<Integer, ReplicationInfo> tmp = new HashMap<Integer,ReplicationInfo>();
+				tmp.put(chunkNum, new ReplicationInfo(desiredReplication,0));
+				replicationDegreeOfOthersChunks.put(fileID, tmp);
+				System.out.println(Thread.currentThread().getName() + ":\n" + "CREATED REPLICATION INFO OF FILE " + fileID
+						+ "\n------------------------------------------------------------\n");
+			}
+		}
+		
+		
+	}
+	
 	/**
 	 * Increments the number of chunk replicas from someone else's backup request
 	 * 
@@ -379,23 +393,31 @@ public class ControlChannelThread extends ChannelThread{
 	public void incrementReplicationOfOtherChunk(String fileId, int chunkNum){
 		
 	    synchronized (replicationDegreeOfOthersChunks) {
-	        Map<Integer,Integer> chunksInfo = replicationDegreeOfOthersChunks.get(fileId);
+	    	
+	        Map<Integer,ReplicationInfo> chunksInfo = replicationDegreeOfOthersChunks.get(fileId);
 
-	        if(chunksInfo != null) {
-	            Integer currentDegree = chunksInfo.get(chunkNum);
-	            if(currentDegree != null) {
+	        if(chunksInfo != null) {      
+	            if(chunksInfo.containsKey(chunkNum)) {
+	            	Integer currentDegree = chunksInfo.get(chunkNum).currentReplication;
 	                currentDegree += 1;
-	                System.out.println("FILE EXISTS - CHUNK WITH REPLICATION "+currentDegree+" |"+fileId+":"+chunkNum+"|");
-	            } else {
-	                chunksInfo.put(chunkNum, 1);
-	                System.out.println("FILE EXISTS - CHUNK WITH REPLICATION 1 |"+fileId+":"+chunkNum+"|");
+	                System.out.println("FILE AND CHUNK EXIST - UPDATED REPLICATION FROM " + (currentDegree-1)
+	                				+ " TO " + currentDegree + " |" +fileId+":"+chunkNum+"|");
+	            } else { 
+	            	//For each PUTCHUNK message received, the backupthread updates the desiredReplication,
+	            	//this else only exists in case the backupThread isn't quick enough to update the variable before receiving a STORED message,
+	            	//in that case, we consider the desired replication 0, which will then be quickly updated to the correct value.
+	            	//In any case, this desiredReplication value isn't used for the PUTCHUNK protocol, rather, it's only used when restoring a file
+	                chunksInfo.put(chunkNum, new ReplicationInfo(0, 1));
+	                System.out.println("FILE EXISTS BUT CHUNK DOES NOT - NEW CHUNK WITH CURRENT REPLICATION 1 |"+fileId+":"+chunkNum+"|"
+	                					+"\nSET DESIRED REPLICATION TO 0");
 	            }
 	        }
 	        else {
-	            chunksInfo = new HashMap<Integer,Integer>();
-	            chunksInfo.put(chunkNum, 1);
+	            chunksInfo = new HashMap<Integer,ReplicationInfo>();
+	            chunksInfo.put(chunkNum, new ReplicationInfo(0, 1));//Same as before, but in case the fileID doesn't exist yet
 	            replicationDegreeOfOthersChunks.put(fileId, chunksInfo);
-	            System.out.println("NEW FILE - CHUNK WITH REPLICATION 1 |"+fileId+":"+chunkNum+"|");
+	            System.out.println("NEW FILE - CHUNK WITH CURRENT REPLICATION 1 |"+fileId+":"+chunkNum+"|"
+	            					+"\nSET DESIRED REPLICATION TO 0");
 	        }
 	    }
 	}
@@ -619,7 +641,7 @@ public class ControlChannelThread extends ChannelThread{
 	public int getNumberOfBackupsFromChunkNo(String file, int chunkNum){
 	    synchronized (replicationDegreeOfOthersChunks) {
 	        try{
-	            return replicationDegreeOfOthersChunks.get(file).get(chunkNum);
+	            return (replicationDegreeOfOthersChunks.get(file).get(chunkNum)).currentReplication;
 	        }catch(NullPointerException e){ 
 	            return 0;
 	        }

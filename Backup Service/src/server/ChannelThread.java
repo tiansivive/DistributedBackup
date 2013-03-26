@@ -4,6 +4,8 @@ import java.net.InetAddress;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
+import constantValues.Values;
+
 
 // TODO: Auto-generated Javadoc
 /**
@@ -34,6 +36,23 @@ public abstract class ChannelThread extends Thread{
             processRequest(new String(request),src);
         }
     }
+    
+	protected class ReplicationInfo {
+		
+		public int desiredReplication;
+		public int currentReplication;
+		public int numberOfRemainingAttempts;
+	
+		public ReplicationInfo(int desired, int current){
+			desiredReplication = desired;
+			currentReplication = current;
+			numberOfRemainingAttempts = Values.number_of_attempts_to_resend_chunks;
+		}	
+		
+		public boolean hasReachedDesiredReplication(){
+			return (currentReplication >= desiredReplication);
+		}	
+	}
 
     protected abstract void processRequest(String request,InetAddress src);
     

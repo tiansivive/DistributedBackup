@@ -216,6 +216,8 @@ public class BackupChannelThread extends ChannelThread {
 
 	        if(requestHeader.matches(headerPattern)) {
 
+	        	getServer().getControl_thread().setChunksDesiredReplication(fields[2], Integer.parseInt(fields[3]), Integer.parseInt(fields[4]));
+	        	
 	            try {
 	                // waiting between 100 and 400 miliseconds before deciding if it will save the chunk
 	                int delay = Server.rand.nextInt(301)+100;
@@ -240,6 +242,7 @@ public class BackupChannelThread extends ChannelThread {
 
 	                if(saveIt) {
 	                    ControlChannelThread cct = getServer().getControl_thread();
+	                    
 	                    if(cct.getNumberOfBackupsFromChunkNo(fields[2], Integer.parseInt(fields[3])) < Integer.parseInt(fields[4])) { // we save it
 	                        
 	                        sendStoredMessage(fields);
