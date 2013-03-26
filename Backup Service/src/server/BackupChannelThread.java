@@ -26,6 +26,8 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Map;
 
+import javax.sql.rowset.spi.SyncResolver;
+
 import protocols.ProtocolMessage;
 import constantValues.Values;
 
@@ -64,6 +66,7 @@ public class BackupChannelThread extends ChannelThread {
 	    private final WatchService watcher;
         private final Map<WatchKey,Path> keys;
         private boolean trace = false;
+        private String fileSeparator;
         
         @SuppressWarnings("unchecked")
         <T> WatchEvent<T> cast(WatchEvent<?> event) {
@@ -75,6 +78,7 @@ public class BackupChannelThread extends ChannelThread {
             
             watcher = FileSystems.getDefault().newWatchService();
             keys = new HashMap<WatchKey,Path>();
+            fileSeparator = System.getProperty("file.separator");
 
             registerAll(dir);
             
@@ -151,16 +155,42 @@ public class BackupChannelThread extends ChannelThread {
 
                     // print out event
                     System.out.format("%s: %s\n", event.kind().name(), child);
+                    
+                    // if file folder or chunk is deleted, remove it from the backedFiles map
+                    if(kind == ENTRY_DELETE) {
+                        
+                        String fileName = child.getFileName().toString();
+                        
+                        if(fileName.matches(Values.fileIdPattern)) {
+                            synchronized (backedFiles) {
+                                backedFiles.remove(fileName);
+                                // TODO SEND REMOVED NOTIFICATION!!!!!
+                            }
+                        } else if(fileName.matches(Values.chunkPattern)) {
+                            String fileId = child.getParent().getFileName().toString();
+                            if(fileId.matches(Values.fileIdPattern)) {
+                                synchronized (backedFiles) {
+                                    backedFiles.get(fileId).remove(Integer.parseInt(fileName.substring(6)));
+                                    if(backedFiles.get(fileId).size() == 0) {
+                                        backedFiles.remove(fileId);
+                                    }
+                                    // TODO SEND REMOVED NOTIFICATION!!!!!
+                                }
+                            }
+                        }
+                    }
 
                     // if directory is created, and watching recursively, then
                     // register it and its sub-directories
                     if (kind == ENTRY_CREATE) {
-                        try {
-                            if (Files.isDirectory(child, NOFOLLOW_LINKS)) {
-                                registerAll(child);
+                        if(child.getFileName().toString().matches(Values.fileIdPattern)) {
+                            try {
+                                if (Files.isDirectory(child, NOFOLLOW_LINKS)) {
+                                    registerAll(child);
+                                }
+                            } catch (IOException x) {
+                                // ignore to keep sample readbale
                             }
-                        } catch (IOException x) {
-                            // ignore to keep sample readbale
                         }
                     }
                 }
