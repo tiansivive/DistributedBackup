@@ -79,6 +79,7 @@ public class FileFusion implements Runnable {
                             fop.flush();
                             byteCounter += f.length();
                             chunkCounter++;
+                            in.close();
                             f.delete();
                         } else {
                             System.out.println(f.getName()+" is not a file chunk");
