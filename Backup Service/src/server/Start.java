@@ -6,9 +6,18 @@ import constantValues.*;
 import java.nio.*;
 
 public class Start{
+    
+    private static void usage() {
+        System.err.println("usage: java Start <MP_IP_ADDRESS> <MC_PORT> <MDB_IP_ADDRESS> <MDB_PORT> <MDR_IP_ADDRESS> <MDR_PORT>");
+        System.exit(-1);
+    }
 
 	public static void main(String[] args){
 
+	    if(args.length != 6) {
+	        usage();
+	    }
+	    
 		/*The first 6 arguments are MC, MDB and MDR, their IP address followed by port number */	
 		try{
 			Values.setMulticast_control_group_address(args[0]);
