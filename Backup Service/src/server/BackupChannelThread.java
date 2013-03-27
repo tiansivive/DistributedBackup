@@ -74,6 +74,10 @@ public class BackupChannelThread extends ChannelThread {
 	private void loadBackedUpFilesMap(File backupDirectory) {
 	    File[] files = backupDirectory.listFiles();
 	    
+	    if(files.length > 0) {
+	    	System.out.println("Loading BackedFiles json into memory");
+	    }
+	    
 	    for(File file : files) {
 	        if(file.getName().matches(Values.fileIdPattern)) {
 	            ArrayList<Integer> chunkNumbers = new ArrayList<Integer>();
@@ -131,12 +135,14 @@ public class BackupChannelThread extends ChannelThread {
 
 	        if(requestHeader.matches(headerPattern)) {
 
+	        	/*
 	        	synchronized (getServer().getReplicasRemovedFromOtherMachines()) {
 	        		if(getServer().getReplicasRemovedFromOtherMachines().contains(fields[2]+":"+fields[3])){ //If it's in the map then this machine needs not send PUTCHUNK
 	        			getServer().getReplicasRemovedFromOtherMachines().remove(fields[2]+":"+fields[3]); //Removes it so 
 	        		}
 	        	}
 	        	getServer().getControl_thread().setChunksDesiredReplication(fields[2], Integer.parseInt(fields[3]), Integer.parseInt(fields[4]));
+	        	*/
 	        	
 	            try {
 	                // waiting between 100 and 400 miliseconds before deciding if it will save the chunk
@@ -215,7 +221,6 @@ public class BackupChannelThread extends ChannelThread {
 			DatagramPacket packet = new DatagramPacket(buf, buf.length, Values.multicast_control_group_address, Values.multicast_control_group_port);
 			ControlChannelThread.getMulticast_control_socket().send(packet);
 			System.out.println(Thread.currentThread().getName() + " sent STORED message");
-			
 		} catch (IOException e) {
 			e.printStackTrace();
 		}

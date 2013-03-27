@@ -31,6 +31,7 @@ public class Server{
 	private HashMap<String,BackedUpFile> backedUpFiles;
 	private HashSet<String> replicasRemovedFromOtherMachines; 
 	private boolean hasBackedUpConfigFiles;
+	private Gson gson;
 	
 	
 	private Server() {
@@ -71,7 +72,7 @@ public class Server{
 		createNecessaryFiles();
 		//TODO CREATE ALL REQUIRED FILES IF THEY'RE NONEXISTANT
 		
-		Gson gson = new Gson();
+		gson = new Gson();
 
         try {
             bufferedReader = new BufferedReader(new FileReader("config.json"));
@@ -227,8 +228,7 @@ public class Server{
 	private void createNecessaryFiles() {
 		
 		HashMap<String, Map<Integer,ReplicationInfo>> toSave = new HashMap<String, Map<Integer,ReplicationInfo>>();
-		Gson gson = new Gson();
-    	
+		gson = new Gson();
 		
 		File replicaInfoFile = new File("ReplicationInfoOfOtherChunks");
 		
@@ -243,10 +243,6 @@ public class Server{
 			// TODO Auto-generated catch block
 			e.printStackTrace();
 		}
-		
-		
-
-		
 	}
 
 	private void listBackedFiles() {
@@ -596,8 +592,6 @@ public class Server{
 		}
 	}
 
-	
-	
 	public static boolean fromThisMachine(InetAddress src){
         if(thisMachineAddress == null) {
             for(InetAddress a : machineAddresses) {

@@ -109,7 +109,6 @@ public class ControlChannelThread extends ChannelThread{
 		while(true){
 			try{
 			    multicast_control_socket.receive(datagram);
-			    
 			    if(!Server.fromThisMachine(datagram.getAddress())){
 			        byte[] temp = new byte[datagram.getLength()];
                     System.arraycopy(datagram.getData(), 0, temp, 0, datagram.getLength());
