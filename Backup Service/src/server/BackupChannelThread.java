@@ -167,6 +167,7 @@ public class BackupChannelThread extends ChannelThread {
 	                }
 
 	                if(saveIt) {
+	                	String debugging = "SAVING IT!!!";
 	                    ControlChannelThread cct = getServer().getControl_thread();
 	                    if(cct.getNumberOfBackupsFromChunkNo(fields[2], Integer.parseInt(fields[3])) < Integer.parseInt(fields[4])) { // we save it
 	                        
@@ -194,6 +195,7 @@ public class BackupChannelThread extends ChannelThread {
                                         chunks.add(new Integer(fields[3]));
                                         backedFiles.put(fields[2],chunks);
                                     }
+	                                System.out.println(debugging);
 	                            }
 	                        } catch (IOException e) {
 	                            e.printStackTrace();

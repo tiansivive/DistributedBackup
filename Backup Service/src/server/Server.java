@@ -536,7 +536,7 @@ public class Server{
 	    synchronized (packetsQueue) {
 	        String key = fileId + ":" + chunkNumber;
 	        if(packetsQueue.containsKey(key)){
-	            int delay = Server.rand.nextInt(+Values.server_sending_packets_delay +1);
+	            int delay = Server.rand.nextInt(+Values.server_sending_packets_delay+1);
 	            try {
 	                Thread.sleep(delay);
 	                BackupChannelThread.getMulticast_backup_socket().send(packetsQueue.get(key));
