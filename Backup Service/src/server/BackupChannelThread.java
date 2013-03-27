@@ -140,7 +140,7 @@ public class BackupChannelThread extends ChannelThread {
 	        	
 	            try {
 	                // waiting between 100 and 400 miliseconds before deciding if it will save the chunk
-	                int delay = Server.rand.nextInt(301)+100;
+	                int delay = Server.rand.nextInt(Values.server_sending_packets_delay);
 	                Thread.sleep(delay);
 	            } catch (InterruptedException e1) {
 	                e1.printStackTrace();
@@ -221,20 +221,17 @@ public class BackupChannelThread extends ChannelThread {
 		}
 	}
 	
-	private void send_REMOVED_messageForFile(String fileName) {
+	public void send_REMOVED_messageForFile(String fileName) {
 		
 		int numberOfChunks = backedFiles.get(fileName).size();
 		
 		while(numberOfChunks-- > 0){
-			
 			send_REMOVED_messageForChunk(fileName, backedFiles.get(fileName).get(numberOfChunks) -1); //sends message in reverse order
 		}
-		
-		
-		
+	
 	}
 
-	private void send_REMOVED_messageForChunk(String fileId, int chunkNum){
+	public void send_REMOVED_messageForChunk(String fileId, int chunkNum){
 		
 		try {
 			String head = Values.diskSpace_reclaimed_control_message_identifier + " "
@@ -365,9 +362,7 @@ public class BackupChannelThread extends ChannelThread {
                         
                         if(fileName.matches(Values.fileIdPattern)) {
                             synchronized (backedFiles) {
-                            	
-                            	System.out.println("GOD DAMN IT, WORK!!!!!!!!!!!!!");
-                            	send_REMOVED_messageForFile(fileName);
+                               	send_REMOVED_messageForFile(fileName);
                                 backedFiles.remove(fileName);
                                 // TODO SEND REMOVED NOTIFICATION!!!!!
                             }
@@ -415,6 +410,7 @@ public class BackupChannelThread extends ChannelThread {
                 }
             }
         }
+        
 	}
 	
 	/**

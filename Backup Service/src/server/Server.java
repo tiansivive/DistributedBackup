@@ -6,6 +6,7 @@ import java.util.*;
 import java.util.Map.Entry;
 
 import protocols.*;
+import server.ChannelThread.ReplicationInfo;
 
 import com.google.gson.*;
 
@@ -91,6 +92,7 @@ public class Server{
 		    System.out.println(" 3 - List backed files");
 		    System.out.println(" 4 - Restore file");
 		    System.out.println(" 5 - Delete file");
+		    System.out.println(" 6 - Reclaim Space");
 		    System.out.println(" 0 - Exit");
 		    System.out.println("\n------------------------------------------");
 		    System.out.print("\nOption: ");
@@ -123,6 +125,10 @@ public class Server{
                     deleteFile();
                 }
                     break;
+                case "6": {
+                    reclaimSpace();
+                }
+                    break;
                 case "0": {
                     System.exit(-1);
                 }
@@ -137,14 +143,101 @@ public class Server{
 		}
 	}
 	
+	private void reclaimSpace() throws IOException {
+
+		String userInput;
+		int spaceToReclaim;
+		while(true){
+			System.out.println("\nHow many KB? ");
+			userInput = bufferedReader.readLine();
+			try{
+				spaceToReclaim = Integer.parseInt(userInput);
+				break;
+			}catch(NumberFormatException e){
+				System.out.println("Input not a number, please try again");
+				continue;
+			}
+		}
+
+		spaceToReclaim = spaceToReclaim * 1000; //Number of bytes
+		int amountOfSpaceReclaimed = 0;
+		
+		boolean onlySelectChunksWithMoreThanDesiredReplication = true;
+		
+		Map<String, Set<Integer>> chunksToBeRemoved = new HashMap<String,Set<Integer>>();
+		HashMap<String, Map<Integer,ReplicationInfo>> tmp = getControl_thread().getReplicationDegreeOfOthersChunks();
+					
+		Iterator<String> fileIterator = tmp.keySet().iterator();
+		while(true){
+			while(fileIterator.hasNext()){
+				
+				String fileID = (String)fileIterator.next();
+				Iterator<Entry<Integer, ReplicationInfo>> chunksIterator = tmp.get(fileID).entrySet().iterator();    
+				Set<Integer> chunksSurplus = new HashSet<Integer>();
+		        while(chunksIterator.hasNext()){
+		        	
+		            Map.Entry<Integer, ReplicationInfo> pair = chunksIterator.next();
+		            if(onlySelectChunksWithMoreThanDesiredReplication){
+			            if(pair.getValue().currentReplication > pair.getValue().desiredReplication){
+			            	chunksSurplus.add(pair.getKey());
+			            	amountOfSpaceReclaimed += Values.number_of_bytes_in_chunk;
+			            }
+		            }else{
+		            	chunksSurplus.add(pair.getKey());
+		            	amountOfSpaceReclaimed += Values.number_of_bytes_in_chunk;
+		            }
+		        }
+		        
+		        
+		        if(!chunksSurplus.isEmpty()){
+		        	chunksToBeRemoved.put(fileID, chunksSurplus);
+		        }
+			}
+			
+			if(amountOfSpaceReclaimed >= spaceToReclaim){//DON'T DELETE MORE THAN NEEDED
+				break;
+			}else{
+				onlySelectChunksWithMoreThanDesiredReplication = false;
+			}
+		}
+		
+		
+		String fileSeparator = System.getProperty("file.separator");
+		fileIterator = chunksToBeRemoved.keySet().iterator();
+		while(fileIterator.hasNext()){
+			String fileID = (String)fileIterator.next();
+			Iterator<Integer> chunksIterator = chunksToBeRemoved.get(fileID).iterator();
+			while(chunksIterator.hasNext()){
+				int chunkNum = (int)chunksIterator.next();
+				tmp.get(fileID).get(chunkNum).currentReplication--;
+				
+				File chunk = new File(Values.directory_to_backup_files + fileSeparator 
+											+ fileID + fileSeparator
+											+ "chunk_" + chunkNum);
+				chunk.delete();
+				getBackup_thread().send_REMOVED_messageForChunk(fileID, chunkNum);
+				chunksIterator.remove();
+			}
+			File fileDir = new File(Values.directory_to_backup_files + fileSeparator 
+					+ fileID);
+			fileDir.delete();
+		}
+	}
+
 	private void createNecessaryFiles() {
 		
+		HashMap<String, Map<Integer,ReplicationInfo>> toSave = new HashMap<String, Map<Integer,ReplicationInfo>>();
+		Gson gson = new Gson();
+    	
 		
 		File replicaInfoFile = new File("ReplicationInfoOfOtherChunks");
 		
 		try {	
 			if(!replicaInfoFile.exists()){
-				replicaInfoFile.createNewFile();
+				FileOutputStream fos = new FileOutputStream(replicaInfoFile);
+				fos.write(gson.toJson(toSave).getBytes());
+				fos.flush();
+				fos.close();
 			}
 		} catch (IOException e) {
 			// TODO Auto-generated catch block

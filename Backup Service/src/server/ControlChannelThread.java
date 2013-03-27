@@ -365,7 +365,7 @@ public class ControlChannelThread extends ChannelThread{
 				System.out.println(Thread.currentThread().getName() + " CHUNK NOT RECOGNIZED");
 			}
 		}else{
-			synchronized(storedMessagesInformation_Cleaner){
+			/*synchronized(storedMessagesInformation_Cleaner){
 				
 				Gson gson = new Gson();
 				 
@@ -389,7 +389,7 @@ public class ControlChannelThread extends ChannelThread{
 				fos.flush();
 				fos.close();
 				
-			}
+			}*/
 			
 		}
 
@@ -671,6 +671,7 @@ public class ControlChannelThread extends ChannelThread{
 			                        	while(filesIterator.hasNext()){ //Update information on file with information on replicationDegreeOfChunks
 			                        		
 			                        		String fileID = (String)filesIterator.next();
+			                        		System.out.println(Thread.currentThread().getName() + " FileID = " + fileID);
 			                        		if(toSave.containsKey(fileID)){
 			                        			
 			                        			Iterator<Integer> chunksIterator = replicationDegreeOfOthersChunks.get(fileID).keySet().iterator();
@@ -688,10 +689,10 @@ public class ControlChannelThread extends ChannelThread{
 				                    	fos.write(json.getBytes());
 				                    	fos.flush();
 				                    	fos.close();
-			                        	replicationDegreeOfOthersChunks.clear();
+			                        	//replicationDegreeOfOthersChunks.clear();
 			                        }
 			                        synchronized (storedMessagesReceived) {
-			                        	storedMessagesReceived.clear();
+			                        	//storedMessagesReceived.clear();
 			                        }
 		                    	}
 		                        // TODO anything else needing cleanup?
@@ -743,5 +744,14 @@ public class ControlChannelThread extends ChannelThread{
 	            return 0;
 	        }
 	    }
+	}
+
+	public HashMap<String, Map<Integer, ReplicationInfo>> getReplicationDegreeOfOthersChunks() {
+		return replicationDegreeOfOthersChunks;
+	}
+
+	public void setReplicationDegreeOfOthersChunks(
+			HashMap<String, Map<Integer, ReplicationInfo>> replicationDegreeOfOthersChunks) {
+		this.replicationDegreeOfOthersChunks = replicationDegreeOfOthersChunks;
 	}
 }
