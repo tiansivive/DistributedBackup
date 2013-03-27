@@ -130,11 +130,13 @@ public class BackupChannelThread extends ChannelThread {
 	    if((endOfHeaderIndex = request.indexOf("\r\n\r\n")) != -1) { // find the end of the header
 	        String requestHeader = request.substring(0, endOfHeaderIndex);
 	        String headerPattern = "^PUTCHUNK 1.0 [a-z0-9]{64} [0-9]{1,6} [1-9]$";
-	        System.out.println("\n\n------------------------Received backup request------------------------\n");
+	        System.out.println("------------------------Received backup request------------------------");
 	        String[] fields = requestHeader.split(" ");
+	        
+	        String debugging = "";
 
 	        if(requestHeader.matches(headerPattern)) {
-
+	        	debugging += "ENTERED THIS! ";
 	        	/*
 	        	synchronized (getServer().getReplicasRemovedFromOtherMachines()) {
 	        		if(getServer().getReplicasRemovedFromOtherMachines().contains(fields[2]+":"+fields[3])){ //If it's in the map then this machine needs not send PUTCHUNK
@@ -167,7 +169,7 @@ public class BackupChannelThread extends ChannelThread {
 	                }
 
 	                if(saveIt) {
-	                	String debugging = "SAVING IT!!!";
+	                	debugging += " SAVING IT!!!";
 	                    ControlChannelThread cct = getServer().getControl_thread();
 	                    if(cct.getNumberOfBackupsFromChunkNo(fields[2], Integer.parseInt(fields[3])) < Integer.parseInt(fields[4])) { // we save it
 	                        
