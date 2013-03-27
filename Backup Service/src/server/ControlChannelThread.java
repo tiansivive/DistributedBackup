@@ -1,9 +1,15 @@
 package server;
 
+import java.io.BufferedReader;
+import java.io.BufferedWriter;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileNotFoundException;
+import java.io.FileOutputStream;
+import java.io.FileReader;
+import java.io.FileWriter;
 import java.io.IOException;
+import java.io.PrintWriter;
 import java.net.DatagramPacket;
 import java.net.InetAddress;
 import java.net.MulticastSocket;
@@ -17,6 +23,11 @@ import java.util.Set;
 
 import protocols.Header;
 import protocols.ProtocolMessage;
+
+import com.google.gson.Gson;
+import com.google.gson.JsonIOException;
+import com.google.gson.JsonSyntaxException;
+
 import constantValues.Values;
 
 
@@ -46,7 +57,7 @@ public class ControlChannelThread extends ChannelThread{
 	private HashMap<InetAddress,Map<String,ArrayList<Integer>>> storedMessagesReceived;
 	private HashMap<String, Set<Integer> > doNotReplyMessages;
 	
-	private HashSet<String> completelyBackedUpFiles; 
+	//private HashSet<String> completelyBackedUpFiles; 
 	private Thread backupRequestsCompletion_Supervisor;
 	private CleanerThread storedMessagesInformation_Cleaner;
 	
@@ -72,7 +83,7 @@ public class ControlChannelThread extends ChannelThread{
 
  	private ControlChannelThread(Server server){
 		setName("ControlThread");
-		completelyBackedUpFiles = new HashSet<String>();
+		//completelyBackedUpFiles = new HashSet<String>();
 		this.doNotReplyMessages = new HashMap<String, Set<Integer>>();
 		replicationDegreeOfOthersChunks = new HashMap<String, Map<Integer,ReplicationInfo>>();
 		storedMessagesReceived = new HashMap<InetAddress,Map<String,ArrayList<Integer>>>();
@@ -332,12 +343,58 @@ public class ControlChannelThread extends ChannelThread{
 	    }
 	}
 
+	private void process_RemovedMessage(Header message) throws JsonSyntaxException, JsonIOException, IOException, InterruptedException{
 
-	private void process_RemovedMessage(Header message){
+		String fileID = message.getMessageType();
+		int chunkNum = message.getChunkNumber();
+		
+		getServer().addRemovedMessageInfomation(fileID, Integer.toString(chunkNum));
+		int delay = Server.rand.nextInt(Values.backup_thread_response_delay +1);
+		Thread.sleep(delay);
+
+		System.out.println(Thread.currentThread().getName() + " RECEIVED REMOVED MESSAGE");
+		if(replicationDegreeOfOthersChunks.containsKey(fileID)){
+			if(replicationDegreeOfOthersChunks.get(fileID).containsKey(chunkNum)){
+				synchronized(replicationDegreeOfOthersChunks){
+					replicationDegreeOfOthersChunks.get(fileID).get(chunkNum).currentReplication--;
+					if(!replicationDegreeOfOthersChunks.get(fileID).get(chunkNum).hasReachedDesiredReplication()){
+						getServer().buildPacketFrom_REMOVED_Message(message, replicationDegreeOfOthersChunks.get(fileID).get(chunkNum).desiredReplication);
+					}
+				}
+			}else{
+				System.out.println(Thread.currentThread().getName() + " CHUNK NOT RECOGNIZED");
+			}
+		}else{
+			synchronized(storedMessagesInformation_Cleaner){
+				
+				Gson gson = new Gson();
+				 
+		        @SuppressWarnings("unchecked")
+				HashMap<String, Map<Integer,ReplicationInfo>> tmp = gson.fromJson(new BufferedReader(new FileReader("ReplicationInfoOfOtherChunks")), HashMap.class);
+				if(tmp.containsKey(fileID)){
+					if(tmp.get(fileID).containsKey(chunkNum)){
+						tmp.get(fileID).get(chunkNum).currentReplication--;
+						if(!tmp.get(fileID).get(chunkNum).hasReachedDesiredReplication()){
+							getServer().buildPacketFrom_REMOVED_Message(message, tmp.get(fileID).get(chunkNum).desiredReplication);
+						}
+					}else{
+						System.out.println(Thread.currentThread().getName() + " CHUNK NOT RECOGNIZED");
+					}
+				}else{
+					System.out.println(Thread.currentThread().getName() + " FILE NOT RECOGNIZED");
+				}
+				File file = new File("ReplicationInfoOfOtherChunks");
+				FileOutputStream fos = new FileOutputStream(file);
+				fos.write(gson.toJson(tmp).getBytes()); //Overwrites file
+				fos.flush();
+				fos.close();
+				
+			}
+			
+		}
 
 	}
-	
-	
+
 	public void updateRequestedBackups(Header info){
 		
 	    ReplicationInfo status = new ReplicationInfo(info.getReplicationDegree(), 0);
@@ -460,7 +517,7 @@ public class ControlChannelThread extends ChannelThread{
 				            synchronized (this) {
 				                System.out.println(this.getName() + " is going to wait...");
 	                            wait();
-                            }
+				            }
 				        } else {
 				            System.out.println(this.getName() + " REQUESTED BACKUPS IS NOT EMPTY. WE STILL DON'T HAVE ALL FILES WITH OUR DESIRED REPLICATION DEGREE");
 				            synchronized (this) {
@@ -474,6 +531,7 @@ public class ControlChannelThread extends ChannelThread{
 				            } else {
 				                synchronized(getServer().getControl_thread()){
 				                    ourRequestedBackups.clear();
+				                    chunksWithMissingReplicas.clear();
 				                    
 				                }
 				                delay = 500;
@@ -491,12 +549,12 @@ public class ControlChannelThread extends ChannelThread{
 				
 				while(filesIterator.hasNext()){
 					
-					String fileId = (String) filesIterator.next();
+					String fileId = filesIterator.next();
 					
 					Iterator<Integer> chunksIterator = chunksWithMissingReplicas.get(fileId).iterator();
 					while(chunksIterator.hasNext()){
 						
-						int chunkNumber = (Integer) chunksIterator.next();	
+						int chunkNumber = chunksIterator.next();	
 						synchronized (ourRequestedBackups) {
 						    
                             if(ourRequestedBackups.get(fileId).get(chunkNumber).numberOfRemainingAttempts-- > 0) {
@@ -520,14 +578,14 @@ public class ControlChannelThread extends ChannelThread{
 				    filesIterator = ourRequestedBackups.keySet().iterator();
 				    while(filesIterator.hasNext()){
 
-				        String fileID = (String) filesIterator.next();
+				        String fileID = filesIterator.next();
 				        Iterator<Entry<Integer, ReplicationInfo>> chunksIterator = ourRequestedBackups.get(fileID).entrySet().iterator();
 				        Set<Integer> chunksWithoutDesiredReplication = new HashSet<Integer>();
 				        boolean hasAtLeastOneReplica = true;
 				        
 				        while(chunksIterator.hasNext()){
 
-				            Map.Entry<Integer, ReplicationInfo> pair = (Entry<Integer, ReplicationInfo>) chunksIterator.next();
+				            Map.Entry<Integer, ReplicationInfo> pair = chunksIterator.next();
 				            if(pair.getValue().currentReplication == 0) {
 				                hasAtLeastOneReplica = false;
 				            }
@@ -558,7 +616,7 @@ public class ControlChannelThread extends ChannelThread{
 
 				        synchronized (chunksWithMissingReplicas) {
 				            if(chunksWithoutDesiredReplication.isEmpty()){
-				                completelyBackedUpFiles.add(fileID);
+				                //completelyBackedUpFiles.add(fileID);
 				                filesIterator.remove();
 				                chunksWithMissingReplicas.remove(fileID);
 				            }else{
@@ -580,7 +638,6 @@ public class ControlChannelThread extends ChannelThread{
 
 		        try {
 		            while(true){
-
 		                if(replicationDegreeOfOthersChunks.isEmpty()){
 		                    synchronized(this){
 		                        System.out.println(this.getName() + " is waiting");
@@ -588,21 +645,61 @@ public class ControlChannelThread extends ChannelThread{
 		                    }
 		                }else{
 		                    synchronized(this){
+		                    	System.out.println(this.getName() + " will wait for a minute");
 		                        this.wait(60000); //Wakes up every minute
 		                    }
 		                    System.out.println(this.getName() + " has woken up\n"
 		                            + "Checkig if clean-up can begin...");
-		                    if(isReadyToWork()){
-		                        replicationDegreeOfOthersChunks.clear();
-		                        storedMessagesReceived.clear();
-		                        // TODO After the last stored message it should store the table into a file and clear it!!! 
+		                    
+		                    
+		                    
+		                    if(isReadyToWork()){	                    	
+		                    	synchronized(this){ //Only one thread can access the file at a time. Wherever else we need to access
+		                    						//this file it need to be inside a synchronized(cleanerThread) block
+		                    		
+			                    	Gson gson = new Gson();
+			                    	@SuppressWarnings("unchecked")
+									HashMap<String, Map<Integer,ReplicationInfo>> toSave 
+			                    				= gson.fromJson(new BufferedReader(new FileReader("ReplicationInfoOfOtherChunks")), HashMap.class);
+			                    	
+			                    	File file = new File("ReplicationInfoOfOtherChunks");
+			                    	FileOutputStream fos = new FileOutputStream(file);
+			                    	
+			                        synchronized(replicationDegreeOfOthersChunks){
+			                        	
+			                        	Iterator<String> filesIterator = replicationDegreeOfOthersChunks.keySet().iterator();
+			                        	while(filesIterator.hasNext()){ //Update information on file with information on replicationDegreeOfChunks
+			                        		
+			                        		String fileID = (String)filesIterator.next();
+			                        		if(toSave.containsKey(fileID)){
+			                        			
+			                        			Iterator<Integer> chunksIterator = replicationDegreeOfOthersChunks.get(fileID).keySet().iterator();
+				                        		while(chunksIterator.hasNext()){
+				                        			
+				                        			int chunkNumber = chunksIterator.next();
+				                        			toSave.get(fileID).put(chunkNumber, replicationDegreeOfOthersChunks.get(fileID).get(chunkNumber));	
+				                        		}
+			                        		}else{
+			                        			toSave.put(fileID, replicationDegreeOfOthersChunks.get(fileID));
+			                        		}
+			                        	}
+			                        	
+			                        	String json = gson.toJson(toSave);
+				                    	fos.write(json.getBytes());
+				                    	fos.flush();
+				                    	fos.close();
+			                        	replicationDegreeOfOthersChunks.clear();
+			                        }
+			                        synchronized (storedMessagesReceived) {
+			                        	storedMessagesReceived.clear();
+			                        }
+		                    	}
 		                        // TODO anything else needing cleanup?
 		                    }
 		                }
 		                this.setReadyToWork(true);              
 		            }
-		        } catch (InterruptedException e) {
-		            // TODO Auto-generated catch block
+		        } catch (InterruptedException | IOException e) {
 		            e.printStackTrace();
 		        }
 		    }

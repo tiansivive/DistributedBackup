@@ -29,9 +29,12 @@ public class Values{
 	public static final String directory_to_backup_files = "BACKUPS";
 	public static final String directory_to_restore_files = "RESTORED";
 	
+	public static final int number_of_bytes_in_chunk = 64000;
+	
 	public static final int server_sending_packets_delay = 100;
 	public static final int backup_thread_response_delay = 400;
 	public static final int restore_channel_send_chunk_delay = 200;
+	public static final int default_supervisor_delay = 500;
 	
 	public static final int max_number_chunks_sent_simultaneously = 500;
 	

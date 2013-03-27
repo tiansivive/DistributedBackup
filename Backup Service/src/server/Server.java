@@ -6,6 +6,7 @@ import java.util.*;
 import java.util.Map.Entry;
 
 import protocols.*;
+
 import com.google.gson.*;
 
 import constantValues.Values;
@@ -27,12 +28,14 @@ public class Server{
 	private Config config;
 	private BufferedReader bufferedReader;
 	private HashMap<String,BackedUpFile> backedUpFiles;
+	private HashSet<String> replicasRemovedFromOtherMachines; 
 	private boolean hasBackedUpConfigFiles;
 	
 	
 	private Server() {
 	    packetsQueue = new HashMap<String,DatagramPacket>();
 	    backedUpFiles = new HashMap<String,BackedUpFile>();
+	    replicasRemovedFromOtherMachines = new HashSet<String>();
 	    Server.rand = new Random();
 	    Server.machineAddresses = new ArrayList<InetAddress>();
         Server.thisMachineAddress = null;
@@ -406,7 +409,7 @@ public class Server{
 	    Iterator<Entry<String,DatagramPacket>> it = packetsQueue.entrySet().iterator();
 	    while (it.hasNext()) {
 	        Map.Entry<String,DatagramPacket> pair = (Map.Entry<String,DatagramPacket>)it.next();
-	        int delay = Server.rand.nextInt(201)+Values.server_sending_packets_delay;
+	        int delay = Server.rand.nextInt(Values.server_sending_packets_delay +1);
 	        try {
 	            Thread.sleep(delay);
 	            BackupChannelThread.getMulticast_backup_socket().send(pair.getValue());
@@ -423,7 +426,7 @@ public class Server{
 	    synchronized (packetsQueue) {
 	        String key = fileId + ":" + chunkNumber;
 	        if(packetsQueue.containsKey(key)){
-	            int delay = Server.rand.nextInt(201)+Values.server_sending_packets_delay;
+	            int delay = Server.rand.nextInt(+Values.server_sending_packets_delay +1);
 	            try {
 	                Thread.sleep(delay);
 	                BackupChannelThread.getMulticast_backup_socket().send(packetsQueue.get(key));
@@ -434,6 +437,51 @@ public class Server{
 	        }
         }
 	}
+	
+	public void buildPacketFrom_REMOVED_Message(Header message, int desiredReplication) throws IOException {
+		
+	
+		if(this.replicasRemovedFromOtherMachines.contains(message.getFileID()+":"+message.getChunkNumber())){
+			synchronized (replicasRemovedFromOtherMachines) {
+				this.replicasRemovedFromOtherMachines.remove(message.getFileID()+":"+message.getChunkNumber());
+			}
+			
+			String head = Values.backup_chunk_data_message_identifier + " "
+					+ Values.protocol_version + " "
+					+ message.getFileID() + " "
+					+ message.getChunkNumber() + " "
+					+ desiredReplication;
+
+			String fileSeparator = System.getProperty("file.separator");
+			File chunk = new File(Values.directory_to_backup_files + fileSeparator
+					+ message.getFileID() + fileSeparator
+					+ "chunk_" + message.getChunkNumber());
+
+			if(chunk.exists()) {
+				byte[] chunkData = new byte[Values.number_of_bytes_in_chunk];
+
+				FileInputStream input = new FileInputStream(chunk);
+				int chunkSize = input.read(chunkData);
+				input.close();
+				if(chunkSize < Values.number_of_bytes_in_chunk) {
+					byte[] temp = new byte[chunkSize];
+					System.arraycopy(chunkData, 0, temp, 0, chunkSize);
+					chunkData = temp;
+				}
+
+				byte[] buf = ProtocolMessage.toBytes(head, chunkData);
+				DatagramPacket packet = new DatagramPacket(buf, buf.length, Values.multicast_backup_group_address, Values.multicast_backup_group_port);
+				this.packetsQueue.put(message.getFileID()+":"+message.getChunkNumber(), packet);
+				this.getControl_thread().updateRequestedBackups(new Header(head));
+				BackupChannelThread.getMulticast_backup_socket().send(packet);
+				this.getControl_thread().notifyDaemonSupervisor();
+
+			}else{
+				System.out.println("FILE NOT FOUND");
+			}
+		}
+	}
+
 	
 	public static boolean fromThisMachine(InetAddress src){
         if(thisMachineAddress == null) {
@@ -477,6 +525,13 @@ public class Server{
 
 	}
 
+	public void addRemovedMessageInfomation(String fileID, String chunkNum){
+		synchronized (replicasRemovedFromOtherMachines) {
+			this.replicasRemovedFromOtherMachines.add(fileID+":"+chunkNum);
+		}
+		
+	}
+	
 	public ControlChannelThread getControl_thread() {
 		return control_thread;
 	}
@@ -494,6 +549,15 @@ public class Server{
 	}
 	public void setRestore_thread(RestoreChannelThread restore_thread) {
 		Server.restore_thread = restore_thread;
+	}
+
+	public HashSet<String> getReplicasRemovedFromOtherMachines() {
+		return replicasRemovedFromOtherMachines;
+	}
+
+	public void setReplicasRemovedFromOtherMachines(
+			HashSet<String> replicasRemovedFromOtherMachines) {
+		this.replicasRemovedFromOtherMachines = replicasRemovedFromOtherMachines;
 	}
 
 	private class BackedUpFile {

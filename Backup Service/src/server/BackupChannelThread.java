@@ -131,6 +131,11 @@ public class BackupChannelThread extends ChannelThread {
 
 	        if(requestHeader.matches(headerPattern)) {
 
+	        	synchronized (getServer().getReplicasRemovedFromOtherMachines()) {
+	        		if(getServer().getReplicasRemovedFromOtherMachines().contains(fields[2]+":"+fields[3])){ //If it's in the map then this machine needs not send PUTCHUNK
+	        			getServer().getReplicasRemovedFromOtherMachines().remove(fields[2]+":"+fields[3]); //Removes it so 
+	        		}
+	        	}
 	        	getServer().getControl_thread().setChunksDesiredReplication(fields[2], Integer.parseInt(fields[3]), Integer.parseInt(fields[4]));
 	        	
 	            try {
