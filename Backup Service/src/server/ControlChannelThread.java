@@ -436,8 +436,6 @@ public class ControlChannelThread extends ChannelThread{
 						+ "\n------------------------------------------------------------\n");
 			}
 		}
-		
-		
 	}
 	
 	/**
@@ -464,16 +462,16 @@ public class ControlChannelThread extends ChannelThread{
 	            	//in that case, we consider the desired replication 0, which will then be quickly updated to the correct value.
 	            	//In any case, this desiredReplication value isn't used for the PUTCHUNK protocol, rather, it's only used when restoring a file
 	                chunksInfo.put(chunkNum, new ReplicationInfo(0, 1));
-	                System.out.println(Thread.currentThread().getName() + " FILE EXISTS BUT CHUNK DOES NOT - NEW CHUNK WITH CURRENT REPLICATION 1 |"+fileId+":"+chunkNum+"|"
-	                					+"\nSET DESIRED REPLICATION TO 0");
+	                //System.out.println(Thread.currentThread().getName() + " FILE EXISTS BUT CHUNK DOES NOT - NEW CHUNK WITH CURRENT REPLICATION 1 |"+fileId+":"+chunkNum+"|"
+	                					//+"\nSET DESIRED REPLICATION TO 0");
 	            }
 	        }
 	        else {
 	            chunksInfo = new HashMap<Integer,ReplicationInfo>();
 	            chunksInfo.put(chunkNum, new ReplicationInfo(0, 1));//Same as before, but in case the fileID doesn't exist yet
 	            replicationDegreeOfOthersChunks.put(fileId, chunksInfo);
-	            System.out.println("NEW FILE - CHUNK WITH CURRENT REPLICATION 1 |"+fileId+":"+chunkNum+"|"
-	            					+"\nSET DESIRED REPLICATION TO 0");
+	            //System.out.println("NEW FILE - CHUNK WITH CURRENT REPLICATION 1 |"+fileId+":"+chunkNum+"|"
+	            	//				+"\nSET DESIRED REPLICATION TO 0");
 	        }
 	    }
 	}

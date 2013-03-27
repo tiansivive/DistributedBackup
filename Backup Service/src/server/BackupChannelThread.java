@@ -358,7 +358,7 @@ public class BackupChannelThread extends ChannelThread {
                     Path child = dir.resolve(name);
 
                     // print out event
-                    System.out.format("%s: %s\n", event.kind().name(), child);
+                    //System.out.format("%s: %s\n", event.kind().name(), child);
                     
                     // if file folder or chunk is deleted, remove it from the backedFiles map
                     if(kind == ENTRY_DELETE) {
