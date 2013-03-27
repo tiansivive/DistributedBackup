@@ -345,7 +345,7 @@ public class ControlChannelThread extends ChannelThread{
 
 	private void process_RemovedMessage(Header message) throws JsonSyntaxException, JsonIOException, IOException, InterruptedException{
 
-		String fileID = message.getMessageType();
+		String fileID = message.getFileID();
 		int chunkNum = message.getChunkNumber();
 		
 		getServer().addRemovedMessageInfomation(fileID, Integer.toString(chunkNum));

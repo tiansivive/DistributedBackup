@@ -68,6 +68,8 @@ public class Server{
 	public void mainLoop() {
 		run_threads();
 		
+		//TODO CREATE ALL REQUIRED FILES IF THEY'RE NONEXISTANT
+		
 		Gson gson = new Gson();
 
         try {

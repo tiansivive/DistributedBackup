@@ -2,8 +2,8 @@
 	"availableSpaceOnServer":1000,
 	"filesToBackup": [ 
 		{
-			"path":"config.json5",
-			"replicationDegree":2
+			"path":"config.json",
+			"replicationDegree":1
 		},
 		{
 			"path":"\Plerx",
@@ -22,7 +22,7 @@
 			"replicationDegree":2
 		},
 		{
-			"path":"Z:/tmp/teste",
+			"path":"Z:/tmp/testef",
 			"replicationDegree":2
 		}
 	]

@@ -221,6 +221,45 @@ public class BackupChannelThread extends ChannelThread {
 		}
 	}
 	
+	private void send_REMOVED_messageForFile(String fileName) {
+		
+		int numberOfChunks = backedFiles.get(fileName).size();
+		
+		while(numberOfChunks-- > 0){
+			
+			send_REMOVED_messageForChunk(fileName, backedFiles.get(fileName).get(numberOfChunks) -1); //sends message in reverse order
+		}
+		
+		
+		
+	}
+
+	private void send_REMOVED_messageForChunk(String fileId, int chunkNum){
+		
+		try {
+			String head = Values.diskSpace_reclaimed_control_message_identifier + " "
+					+ Values.protocol_version + " "
+					+ fileId + " "
+					+ chunkNum;
+
+			byte[] buf = ProtocolMessage.toBytes(head, null);
+			DatagramPacket packet = new DatagramPacket(buf, buf.length, Values.multicast_control_group_address, Values.multicast_control_group_port);			
+			
+			int delay = Server.rand.nextInt(Values.backup_thread_response_delay);
+			Thread.sleep(delay);
+			ControlChannelThread.getMulticast_control_socket().send(packet);
+			
+			System.out.println("\n" + Thread.currentThread().getName() + " SENT REMOVED MESSAGE:"
+									+ "\nFILE: " + fileId 
+									+ "\nCHUNK: " + chunkNum
+									+ "--------------------------------------------------------------");
+			
+		} catch (IOException | InterruptedException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}
+	}
+	
 	
 	private class WatchDir extends Thread {
         private final WatchService watcher;
@@ -323,6 +362,8 @@ public class BackupChannelThread extends ChannelThread {
                         
                         if(fileName.matches(Values.fileIdPattern)) {
                             synchronized (backedFiles) {
+                            	
+                            	send_REMOVED_messageForFile(fileName);
                                 backedFiles.remove(fileName);
                                 // TODO SEND REMOVED NOTIFICATION!!!!!
                             }
@@ -330,6 +371,8 @@ public class BackupChannelThread extends ChannelThread {
                             String fileId = child.getParent().getFileName().toString();
                             if(fileId.matches(Values.fileIdPattern)) {
                                 synchronized (backedFiles) {
+                                	
+                                	send_REMOVED_messageForChunk(fileId, Integer.parseInt(fileName.substring(6)));
                                     backedFiles.get(fileId).remove(Integer.parseInt(fileName.substring(6)));
                                     if(backedFiles.get(fileId).size() == 0) {
                                         backedFiles.remove(fileId);
@@ -349,7 +392,7 @@ public class BackupChannelThread extends ChannelThread {
                                     registerAll(child);
                                 }
                             } catch (IOException x) {
-                                // ignore to keep sample readbale
+                                // ignore to keep sample readable
                             }
                         }
                     }
