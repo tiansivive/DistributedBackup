@@ -2,7 +2,7 @@
 	"availableSpaceOnServer":1000,
 	"filesToBackup": [ 
 		{
-			"path":"config.jsons",
+			"path":"config.json",
 			"replicationDegree":1
 		},
 		{
@@ -22,7 +22,7 @@
 			"replicationDegree":2
 		},
 		{
-			"path":"Z:/tmp/teste",
+			"path":"Z:/tmp/testef",
 			"replicationDegree":1
 		}
 	]

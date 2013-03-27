@@ -316,7 +316,7 @@ public class ControlChannelThread extends ChannelThread{
 	                synchronized(storedMessagesInformation_Cleaner){
 	                    this.storedMessagesInformation_Cleaner.notifyAll();
 	                }
-	                Thread.sleep(50); //wakes up the Cleaner, waits that it changes it's own readyToWork status to true and then changes it to false
+	                Thread.sleep(20); //wakes up the Cleaner, waits that it changes it's own readyToWork status to true and then changes it to false
 	                this.storedMessagesInformation_Cleaner.setReadyToWork(false);
 	                debugMessage += src.toString()+" RECEIVED STORED OF OTHER\n";
 	            }
@@ -457,7 +457,7 @@ public class ControlChannelThread extends ChannelThread{
 	            if(chunksInfo.containsKey(chunkNum)) {
 	            	Integer currentDegree = chunksInfo.get(chunkNum).currentReplication;
 	                currentDegree += 1;
-	                System.out.println("FILE AND CHUNK EXIST - UPDATED REPLICATION FROM " + (currentDegree-1)
+	                System.out.println(Thread.currentThread().getName() + " FILE AND CHUNK EXIST - UPDATED REPLICATION FROM " + (currentDegree-1)
 	                				+ " TO " + currentDegree + " |" +fileId+":"+chunkNum+"|");
 	            } else { 
 	            	//For each PUTCHUNK message received, the backupthread updates the desiredReplication,
@@ -465,7 +465,7 @@ public class ControlChannelThread extends ChannelThread{
 	            	//in that case, we consider the desired replication 0, which will then be quickly updated to the correct value.
 	            	//In any case, this desiredReplication value isn't used for the PUTCHUNK protocol, rather, it's only used when restoring a file
 	                chunksInfo.put(chunkNum, new ReplicationInfo(0, 1));
-	                System.out.println("FILE EXISTS BUT CHUNK DOES NOT - NEW CHUNK WITH CURRENT REPLICATION 1 |"+fileId+":"+chunkNum+"|"
+	                System.out.println(Thread.currentThread().getName() + " FILE EXISTS BUT CHUNK DOES NOT - NEW CHUNK WITH CURRENT REPLICATION 1 |"+fileId+":"+chunkNum+"|"
 	                					+"\nSET DESIRED REPLICATION TO 0");
 	            }
 	        }
@@ -690,6 +690,7 @@ public class ControlChannelThread extends ChannelThread{
 				                    	fos.flush();
 				                    	fos.close();
 			                        	//replicationDegreeOfOthersChunks.clear();
+				                    	this.wait();
 			                        }
 			                        synchronized (storedMessagesReceived) {
 			                        	//storedMessagesReceived.clear();
@@ -741,7 +742,7 @@ public class ControlChannelThread extends ChannelThread{
 	        try{
 	            return (replicationDegreeOfOthersChunks.get(file).get(chunkNum)).currentReplication;
 	        }catch(NullPointerException e){ 
-	            return 0;
+	            return -1;
 	        }
 	    }
 	}
