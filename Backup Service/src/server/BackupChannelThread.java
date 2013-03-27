@@ -173,6 +173,7 @@ public class BackupChannelThread extends ChannelThread {
 	                        try {
 	                            if(!directory.mkdirs() && !directory.exists()) {
 	                                System.out.println("ERROR CREATING FILE DIRECTORY.");
+	                                //TODO SEND REMOVED NOTIFICATION!!!!
 	                            } else {
 	                                FileOutputStream fop = new FileOutputStream(output);
 	                                fop.write(data.getBytes());
@@ -219,6 +220,7 @@ public class BackupChannelThread extends ChannelThread {
 			e.printStackTrace();
 		}
 	}
+	
 	
 	private class WatchDir extends Thread {
         private final WatchService watcher;
