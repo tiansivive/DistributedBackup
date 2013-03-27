@@ -22,8 +22,8 @@
 			"replicationDegree":2
 		},
 		{
-			"path":"Z:/tmp/testef",
-			"replicationDegree":2
+			"path":"Z:/tmp/teste2",
+			"replicationDegree":1
 		}
 	]
 }

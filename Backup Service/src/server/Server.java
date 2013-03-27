@@ -11,7 +11,7 @@ import com.google.gson.*;
 
 import constantValues.Values;
 
-//g
+
 public class Server{
 
 	private static ControlChannelThread control_thread;
@@ -67,7 +67,7 @@ public class Server{
 
 	public void mainLoop() {
 		run_threads();
-		
+		createNecessaryFiles();
 		//TODO CREATE ALL REQUIRED FILES IF THEY'RE NONEXISTANT
 		
 		Gson gson = new Gson();
@@ -137,6 +137,25 @@ public class Server{
 		}
 	}
 	
+	private void createNecessaryFiles() {
+		
+		
+		File replicaInfoFile = new File("ReplicationInfoOfOtherChunks");
+		
+		try {	
+			if(!replicaInfoFile.exists()){
+				replicaInfoFile.createNewFile();
+			}
+		} catch (IOException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}
+		
+		
+
+		
+	}
+
 	private void listBackedFiles() {
 	    Iterator<Entry<String,BackedUpFile>> it = backedUpFiles.entrySet().iterator();
 

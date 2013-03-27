@@ -41,7 +41,7 @@ public class BackupChannelThread extends ChannelThread {
 	private static MulticastSocket multicast_backup_socket;
     private static BackupChannelThread instance;
     private Thread backupDirectoryWatcher;
-    
+      
     private HashMap<String,ArrayList<Integer>> backedFiles;
        
 	private BackupChannelThread(Server server) {
@@ -285,6 +285,8 @@ public class BackupChannelThread extends ChannelThread {
             this.trace = true;
             setName("BackupDirectoryWatcherDaemonThread");
             setDaemon(true);
+            
+            System.out.println("Initialized BackupDirectoryWatcherDaemonThread");
         }
         
         /**
@@ -325,7 +327,7 @@ public class BackupChannelThread extends ChannelThread {
         public void run() {
             for (;;) {
 
-                // wait for key to be signalled
+            	// wait for key to be signaled
                 WatchKey key;
                 try {
                     key = watcher.take();
@@ -338,10 +340,11 @@ public class BackupChannelThread extends ChannelThread {
                     System.err.println("WatchKey not recognized!!");
                     continue;
                 }
-
+                
                 for (WatchEvent<?> event: key.pollEvents()) {
                     WatchEvent.Kind kind = event.kind();
 
+                    
                     // TBD - provide example of how OVERFLOW event is handled
                     if (kind == OVERFLOW) {
                         continue;
@@ -363,6 +366,7 @@ public class BackupChannelThread extends ChannelThread {
                         if(fileName.matches(Values.fileIdPattern)) {
                             synchronized (backedFiles) {
                             	
+                            	System.out.println("GOD DAMN IT, WORK!!!!!!!!!!!!!");
                             	send_REMOVED_messageForFile(fileName);
                                 backedFiles.remove(fileName);
                                 // TODO SEND REMOVED NOTIFICATION!!!!!
@@ -401,6 +405,7 @@ public class BackupChannelThread extends ChannelThread {
                 // reset key and remove from set if directory no longer accessible
                 boolean valid = key.reset();
                 if (!valid) {
+                	System.out.println("DIRECTORY NOT ACCESSIBLE");
                     keys.remove(key);
 
                     // all directories are inaccessible
