@@ -175,15 +175,15 @@ public class BackupChannelThread extends ChannelThread {
 	                			try {
 	                				if(!directory.mkdirs() && !directory.exists()) {
 	                					System.out.println("ERROR CREATING FILE DIRECTORY.");
-	                					//TODO SEND REMOVED NOTIFICATION!!!!
+	                					send_REMOVED_messageForChunk(fields[2], Integer.parseInt(fields[3]));
 	                				} else {
 	                					FileOutputStream fop = new FileOutputStream(output);
 	                					fop.write(data.getBytes());
 	                					fop.flush();
 	                					fop.close();
 	                					cct.incrementReplicationOfOtherChunk(fields[2], Integer.parseInt(fields[3]));
-	                					getServer().getControl_thread().setChunksDesiredReplication(fields[2], Integer.parseInt(fields[3]), Integer.parseInt(fields[4])); // TODO TESTING
-
+	                					getServer().getControl_thread().setChunksDesiredReplication(fields[2], Integer.parseInt(fields[3]), Integer.parseInt(fields[4]));
+	                					
 	                					try {
 	                						backedFiles.get(fields[2]).add(new Integer(fields[3]));
 	                					} catch (NullPointerException e) {
@@ -191,6 +191,7 @@ public class BackupChannelThread extends ChannelThread {
 	                						chunks.add(new Integer(fields[3]));
 	                						backedFiles.put(fields[2],chunks);
 	                					}
+	                					getServer().removeThisSpaceFromServer(data.length());
 	                				}
 	                			} catch (IOException e) {
 	                				e.printStackTrace();
@@ -229,7 +230,6 @@ public class BackupChannelThread extends ChannelThread {
 	public void send_REMOVED_messageForFile(String fileName) {
 		
 		int numberOfChunks = backedFiles.get(fileName).size();
-		
 		while(numberOfChunks-- > 0){
 			send_REMOVED_messageForChunk(fileName, backedFiles.get(fileName).get(numberOfChunks-1)); //sends message in reverse order
 		}

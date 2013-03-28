@@ -636,6 +636,11 @@ public class Server{
 	public long getAvailableSpaceOnServer() {
 		return availableSpaceOnServer;
 	}
+	
+	public void removeThisSpaceFromServer(int bytes) {
+		availableSpaceOnServer -= bytes;
+		System.out.println("REMOVED "+bytes+" BYTES FROM THE AVAILABLE SPACE!");
+	}
 
 	public void addRemovedMessageInfomation(String fileID, String chunkNum){
 		synchronized (replicasRemovedFromOtherMachines) {
