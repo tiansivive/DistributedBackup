@@ -214,7 +214,7 @@ public class Server{
 										File chunk = new File(Values.directory_to_backup_files + fileSeparator 
 												+ fileID + fileSeparator
 												+ "chunk_" + chunkNum);
-										amountOfSpaceReclaimed += chunk.length(); // TODO it might be smaller
+										amountOfSpaceReclaimed += chunk.length();
 
 										System.out.println("ADDING CHUNK NUMBER " + chunkNum 
 												+ " FROM FILE " + fileID 
@@ -225,7 +225,7 @@ public class Server{
 									File chunk = new File(Values.directory_to_backup_files + fileSeparator 
 											+ fileID + fileSeparator
 											+ "chunk_" + chunkNum);
-									amountOfSpaceReclaimed += chunk.length(); // TODO it might be smaller
+									amountOfSpaceReclaimed += chunk.length();
 
 									System.out.println("ADDING CHUNK NUMBER " + chunkNum 
 											+ " FROM FILE " + fileID 
