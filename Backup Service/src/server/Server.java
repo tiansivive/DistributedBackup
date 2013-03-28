@@ -243,22 +243,31 @@ public class Server{
 		}
 	}
 
+	
 	private void createNecessaryFiles() {
 		
 		HashMap<String, Map<Integer,ReplicationInfo>> toSave = new HashMap<String, Map<Integer,ReplicationInfo>>();
 		gson = new Gson();
-		
-		File replicaInfoFile = new File("ReplicationInfoOfOtherChunks");
-		
-		try {	
-			if(!replicaInfoFile.exists()){
-				FileOutputStream fos = new FileOutputStream(replicaInfoFile);
+
+		try{
+			synchronized(getControl_thread().getReplicationDegreeOfOthersChunks()){
+				getControl_thread().setReplicationDegreeOfOthersChunks(
+						gson.fromJson(new BufferedReader(new FileReader("ReplicationDegreeOfOthersChunks")), HashMap.class));
+			}
+		} catch(FileNotFoundException e){
+
+			try {
+				File replicationInfo = new File("ReplicationDegreeOfOthersChunks");
+				FileOutputStream fos = new FileOutputStream(replicationInfo);
 				fos.write(gson.toJson(toSave).getBytes());
 				fos.flush();
 				fos.close();
+			} catch (IOException e1) {
+				// TODO Auto-generated catch block
+				e1.printStackTrace();
 			}
-		} catch (IOException e) {
-			e.printStackTrace();
+
+
 		}
 	}
 
