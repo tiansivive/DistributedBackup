@@ -152,7 +152,7 @@ public class BackupChannelThread extends ChannelThread {
 	        		getServer().getReplicasRemovedFromOtherMachines().remove(fields[2]+":"+fields[3]); // this machine doesn't need to start backup subprotocol after receiving REMOVED message
 	        	}
 
-	        	if(!this.ignorePUTCHUNKs.contains(fields[2] +":"+ fields[3])){
+	        	if(!ignorePUTCHUNKs.contains(fields[2] +":"+ fields[3])){
 
 	        		boolean saveIt = false;
 

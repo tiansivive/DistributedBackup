@@ -152,17 +152,17 @@ public class Server{
                 case "0": {
                     System.exit(-1);
                 }
-                    break;
+                break;
                 default:
-                    break;
+                	break;
                 }
-                
+
             } catch (IOException e) {
-                e.printStackTrace();
+            	e.printStackTrace();
             }
 		}
 	}
-	
+
 	private void reclaimSpace() throws IOException {
 
 		String userInput;
@@ -178,92 +178,99 @@ public class Server{
 			}
 		}
 
-		spaceToReclaim = spaceToReclaim * 1000; //Number of bytes
-		int amountOfSpaceReclaimed = 0;
-		
-		boolean onlySelectChunksWithMoreThanDesiredReplication = true;
-		
-		Map<String, Set<Integer>> chunksToBeRemoved = new HashMap<String,Set<Integer>>();
-		HashMap<String, Map<Integer,Integer>> tmp = getControl_thread().getReplicationDegreeOfOthersChunks();
-		String fileSeparator = System.getProperty("file.separator");
-		
-		Iterator<String> fileIterator = tmp.keySet().iterator();
-		while(true){
-			System.out.println("WHILE TRUE");
-			while(fileIterator.hasNext()){
-				
-				String fileID = (String)fileIterator.next();
-				System.out.println(fileID);
-				Iterator<Integer> chunksIterator = tmp.get(fileID).keySet().iterator();    
-				Set<Integer> chunksSurplus = new HashSet<Integer>();
-				
-		        while(chunksIterator.hasNext()){
-		        	System.out.println(chunksIterator.next());
-		        	System.out.println("CLASS : "+chunksIterator.getClass());
-		            Integer chunkNum = chunksIterator.next();
-		            
-		            if(onlySelectChunksWithMoreThanDesiredReplication){
-			            if(getControl_thread().hasChunkGotMoreThanDesiredNumberOfReplicas(fileID, chunkNum)){
-			            	chunksSurplus.add(chunkNum);
-			            	
-			            	File chunk = new File(Values.directory_to_backup_files + fileSeparator 
-			            								+ fileID + fileSeparator
-			            								+ "chunk_" + chunkNum);
-			            	amountOfSpaceReclaimed += chunk.length(); // TODO it might be smaller
-			            	
-			            	System.out.println("ADDING CHUNK NUMBER " + chunkNum 
-									+ " FROM FILE " + fileID 
-									+ " TO REMOVE LIST");   
-			            }
-		            }else{
-		            	chunksSurplus.add(chunkNum);
-		            	File chunk = new File(Values.directory_to_backup_files + fileSeparator 
-													+ fileID + fileSeparator
-													+ "chunk_" + chunkNum);
-		            	amountOfSpaceReclaimed += chunk.length(); // TODO it might be smaller
-		            	
-		            	System.out.println("ADDING CHUNK NUMBER " + chunkNum 
-								+ " FROM FILE " + fileID 
-								+ " TO REMOVE LIST");
-		            }
-		        }
-		        
-		        if(!chunksSurplus.isEmpty()){
-		        	chunksToBeRemoved.put(fileID, chunksSurplus);
-		        }
-			}
-			
-			if(amountOfSpaceReclaimed >= spaceToReclaim){//DON'T DELETE MORE THAN NEEDED
-				break;
-			}else{
-				onlySelectChunksWithMoreThanDesiredReplication = false;
-			}
-		}
-		
-		System.out.println("GOING TO REMOVE " + amountOfSpaceReclaimed + " BYTES");
-		
-		fileIterator = chunksToBeRemoved.keySet().iterator();
-		while(fileIterator.hasNext()){
-			String fileID = (String)fileIterator.next();
-			Iterator<Integer> chunksIterator = chunksToBeRemoved.get(fileID).iterator();
-			while(chunksIterator.hasNext()){
-				int chunkNum = (int)chunksIterator.next();
-				int currentReplication = tmp.get(fileID).get(chunkNum);
-				currentReplication--;
-				tmp.get(fileID).put(chunkNum, currentReplication);
-				
-				File chunk = new File(Values.directory_to_backup_files + fileSeparator 
+		if(spaceToReclaim != -1) {
+			spaceToReclaim = spaceToReclaim * 1000; //Number of bytes
+			int amountOfSpaceReclaimed = 0;
+
+			boolean onlySelectChunksWithMoreThanDesiredReplication = true;
+
+			Map<String, Set<Integer>> chunksToBeRemoved = new HashMap<String,Set<Integer>>();
+			synchronized (getControl_thread().getReplicationDegreeOfOthersChunks()) {
+
+				HashMap<String, Map<Integer,Integer>> tmp = getControl_thread().getReplicationDegreeOfOthersChunks();
+				String fileSeparator = System.getProperty("file.separator");
+
+				Iterator<String> fileIterator = tmp.keySet().iterator();
+
+				if(tmp.size() > 0) {
+					while(true){
+						System.out.println("WHILE TRUE");
+						while(fileIterator.hasNext()){
+
+							String fileID = (String)fileIterator.next();
+							System.out.println(fileID);
+							Iterator<Integer> chunksIterator = tmp.get(fileID).keySet().iterator();    
+							Set<Integer> chunksSurplus = new HashSet<Integer>();
+
+							while(chunksIterator.hasNext()){
+								System.out.println(chunksIterator.next());
+								System.out.println("CLASS : "+chunksIterator.getClass());
+								Integer chunkNum = chunksIterator.next();
+
+								if(onlySelectChunksWithMoreThanDesiredReplication){
+									if(getControl_thread().hasChunkGotMoreThanDesiredNumberOfReplicas(fileID, chunkNum)){
+										chunksSurplus.add(chunkNum);
+
+										File chunk = new File(Values.directory_to_backup_files + fileSeparator 
+												+ fileID + fileSeparator
+												+ "chunk_" + chunkNum);
+										amountOfSpaceReclaimed += chunk.length(); // TODO it might be smaller
+
+										System.out.println("ADDING CHUNK NUMBER " + chunkNum 
+												+ " FROM FILE " + fileID 
+												+ " TO REMOVE LIST");   
+									}
+								}else{
+									chunksSurplus.add(chunkNum);
+									File chunk = new File(Values.directory_to_backup_files + fileSeparator 
 											+ fileID + fileSeparator
-											+ "chunk_" + chunkNum);			
-				chunk.delete();
-				getBackup_thread().send_REMOVED_messageForChunk(fileID, chunkNum);
-				chunksIterator.remove();
+											+ "chunk_" + chunkNum);
+									amountOfSpaceReclaimed += chunk.length(); // TODO it might be smaller
+
+									System.out.println("ADDING CHUNK NUMBER " + chunkNum 
+											+ " FROM FILE " + fileID 
+											+ " TO REMOVE LIST");
+								}
+							}
+
+							if(!chunksSurplus.isEmpty()){
+								chunksToBeRemoved.put(fileID, chunksSurplus);
+							}
+						}
+
+						if(amountOfSpaceReclaimed >= spaceToReclaim){//DON'T DELETE MORE THAN NEEDED
+							break;
+						}else{
+							onlySelectChunksWithMoreThanDesiredReplication = false;
+						}
+					}
+					System.out.println("GOING TO REMOVE " + amountOfSpaceReclaimed + " BYTES");
+					
+					fileIterator = chunksToBeRemoved.keySet().iterator();
+					while(fileIterator.hasNext()){
+						String fileID = (String)fileIterator.next();
+						Iterator<Integer> chunksIterator = chunksToBeRemoved.get(fileID).iterator();
+						while(chunksIterator.hasNext()){
+							int chunkNum = (int)chunksIterator.next();
+							int currentReplication = tmp.get(fileID).get(chunkNum);
+							currentReplication--;
+							tmp.get(fileID).put(chunkNum, currentReplication);
+
+							File chunk = new File(Values.directory_to_backup_files + fileSeparator 
+									+ fileID + fileSeparator
+									+ "chunk_" + chunkNum);			
+							chunk.delete();
+							getBackup_thread().send_REMOVED_messageForChunk(fileID, chunkNum);
+							chunksIterator.remove();
+						}
+						File fileDir = new File(Values.directory_to_backup_files + fileSeparator 
+								+ fileID);
+						fileDir.delete();
+					}
+					System.out.println("DONE RECLAIMING SPACE");
+				}
 			}
-			File fileDir = new File(Values.directory_to_backup_files + fileSeparator 
-					+ fileID);
-			fileDir.delete();
 		}
-		System.out.println("DONE RECLAIMING SPACE");
 	}
 
 	
@@ -282,7 +289,6 @@ public class Server{
 				System.out.println("Loaded ReplicationDegreeOfOthersChunks into memory");
 			}
 		} catch(FileNotFoundException e){
-
 			try {
 				File replicationInfo = new File("ReplicationDegreeOfOthersChunks");
 				FileOutputStream fos = new FileOutputStream(replicationInfo);
@@ -290,11 +296,8 @@ public class Server{
 				fos.flush();
 				fos.close();
 			} catch (IOException e1) {
-				// TODO Auto-generated catch block
 				e1.printStackTrace();
 			}
-
-
 		}
 		
 		

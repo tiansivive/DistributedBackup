@@ -1,15 +1,13 @@
 package server;
 
 import java.io.BufferedReader;
-import java.io.BufferedWriter;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
 import java.io.FileReader;
-import java.io.FileWriter;
 import java.io.IOException;
-import java.io.PrintWriter;
+import java.lang.reflect.Type;
 import java.net.DatagramPacket;
 import java.net.InetAddress;
 import java.net.MulticastSocket;
@@ -27,6 +25,7 @@ import protocols.ProtocolMessage;
 import com.google.gson.Gson;
 import com.google.gson.JsonIOException;
 import com.google.gson.JsonSyntaxException;
+import com.google.gson.reflect.TypeToken;
 
 import constantValues.Values;
 
@@ -651,14 +650,15 @@ public class ControlChannelThread extends ChannelThread{
 									//this file it need to be inside a synchronized(cleanerThread) block
 
 									Gson gson = new Gson();
-
+									
+									BufferedReader bufferedReader;
+									
 									//UPDATE ReplicationDegreeOfOthersChunks FILE
 									synchronized(replicationDegreeOfOthersChunks){
-
-										@SuppressWarnings("unchecked")
-										HashMap<String, Map<Integer,Integer>> toSaveReplicationDegree
-											= gson.fromJson(new BufferedReader(new FileReader("ReplicationDegreeOfOthersChunks")), HashMap.class);
-
+										
+										bufferedReader = new BufferedReader(new FileReader("ReplicationDegreeOfOthersChunks"));
+										Type hashmapType = new TypeToken<HashMap<String,Map<Integer,Integer>>>(){}.getType();
+										HashMap<String, Map<Integer,Integer>> toSaveReplicationDegree = gson.fromJson(bufferedReader, hashmapType);
 										
 										Iterator<String> filesIterator = replicationDegreeOfOthersChunks.keySet().iterator();
 										while(filesIterator.hasNext()){ //Update information on file with information on replicationDegreeOfChunks
@@ -692,8 +692,9 @@ public class ControlChannelThread extends ChannelThread{
 									//UPDATE desiredReplicationOfFiles FILE
 									synchronized(desiredReplicationOfFiles){
 										
-										HashMap<String, Integer> toSaveDesiredReplication = 
-												gson.fromJson(new BufferedReader(new FileReader("DesiredReplicationOfFiles")), HashMap.class);
+										bufferedReader = new BufferedReader(new FileReader("DesiredReplicationOfFiles"));
+										Type hashmapType = new TypeToken<HashMap<String,Integer>>(){}.getType();
+										HashMap<String,Integer> toSaveDesiredReplication = gson.fromJson(bufferedReader, hashmapType);
 										
 										Iterator<String> filesIterator = desiredReplicationOfFiles.keySet().iterator();
 										while(filesIterator.hasNext()){ 
