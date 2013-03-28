@@ -436,6 +436,7 @@ public class ControlChannelThread extends ChannelThread{
 				if(chunksInfo.containsKey(chunkNum)) {
 					Integer currentDegree = chunksInfo.get(chunkNum);
 					currentDegree += 1;
+					chunksInfo.put(chunkNum, currentDegree);
 					System.out.println(Thread.currentThread().getName() + " FILE AND CHUNK EXIST - UPDATED REPLICATION FROM " + (currentDegree-1)
 							+ " TO " + currentDegree + " |" +fileId+":"+chunkNum+"|");
 				} else { 

@@ -190,14 +190,18 @@ public class Server{
 		
 		Iterator<String> fileIterator = tmp.keySet().iterator();
 		while(true){
+			//System.out.println("WHILE TRUE");
 			while(fileIterator.hasNext()){
 				
 				String fileID = (String)fileIterator.next();
+				System.out.println(fileID);
 				Iterator<Integer> chunksIterator = tmp.get(fileID).keySet().iterator();    
 				Set<Integer> chunksSurplus = new HashSet<Integer>();
+				
 		        while(chunksIterator.hasNext()){
-		        	
+		        	System.out.println(chunksIterator.next());
 		            Integer chunkNum = chunksIterator.next();
+		            
 		            if(onlySelectChunksWithMoreThanDesiredReplication){
 			            if(getControl_thread().hasChunkGotMoreThanDesiredNumberOfReplicas(fileID, chunkNum)){
 			            	chunksSurplus.add(chunkNum);
@@ -205,7 +209,7 @@ public class Server{
 			            	File chunk = new File(Values.directory_to_backup_files + fileSeparator 
 			            								+ fileID + fileSeparator
 			            								+ "chunk_" + chunkNum);
-			            	amountOfSpaceReclaimed += chunk.length();; // TODO it might be smaller
+			            	amountOfSpaceReclaimed += chunk.length(); // TODO it might be smaller
 			            	
 			            	System.out.println("ADDING CHUNK NUMBER " + chunkNum 
 									+ " FROM FILE " + fileID 
@@ -216,7 +220,7 @@ public class Server{
 		            	File chunk = new File(Values.directory_to_backup_files + fileSeparator 
 													+ fileID + fileSeparator
 													+ "chunk_" + chunkNum);
-		            	amountOfSpaceReclaimed += chunk.length();; // TODO it might be smaller
+		            	amountOfSpaceReclaimed += chunk.length(); // TODO it might be smaller
 		            	
 		            	System.out.println("ADDING CHUNK NUMBER " + chunkNum 
 								+ " FROM FILE " + fileID 
@@ -274,6 +278,7 @@ public class Server{
 			synchronized(getControl_thread().getReplicationDegreeOfOthersChunks()){
 				getControl_thread().setReplicationDegreeOfOthersChunks(
 						gson.fromJson(new BufferedReader(new FileReader("ReplicationDegreeOfOthersChunks")), HashMap.class));
+				System.out.println("Loaded ReplicationDegreeOfOthersChunks into memory");
 			}
 		} catch(FileNotFoundException e){
 
@@ -296,6 +301,7 @@ public class Server{
 			synchronized(getControl_thread().getReplicationDegreeOfOthersChunks()){
 				getControl_thread().setDesiredReplicationOfFiles(
 						gson.fromJson(new BufferedReader(new FileReader("DesiredReplicationOfFiles")), HashMap.class));
+				System.out.println("Loaded DesiredReplicationOfFiles into memory");
 			}
 		} catch(FileNotFoundException e){
 
