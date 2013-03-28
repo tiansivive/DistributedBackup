@@ -34,7 +34,8 @@ public class Server{
 	private HashSet<String> replicasRemovedFromOtherMachines; 
 	private boolean hasBackedUpConfigFiles;
 	private Gson gson;
-	private long availableSpaceOnServer; // in bytes
+	private long initialAvailableSpaceOnServer; // in bytes, will be used for the space reclaim protocol
+	private long currentAvailableSpaceOnServer; // in bytes
 	
 	
 	private Server() {
@@ -88,7 +89,9 @@ public class Server{
         try {
             bufferedReader = new BufferedReader(new FileReader("config.json"));
             config = gson.fromJson(bufferedReader, Config.class);
-            availableSpaceOnServer = config.availableSpaceOnServer * 1000;
+            initialAvailableSpaceOnServer = config.availableSpaceOnServer * 1000;
+            currentAvailableSpaceOnServer = initialAvailableSpaceOnServer; // TODO we have to save the current space
+
         } catch (FileNotFoundException e) {
             System.out.println("Configuration file is missing. Shutting down the server.");
             System.exit(-1);
@@ -662,11 +665,11 @@ public class Server{
 	}
 	
 	public long getAvailableSpaceOnServer() {
-		return availableSpaceOnServer;
+		return currentAvailableSpaceOnServer;
 	}
 	
 	public void removeThisSpaceFromServer(int bytes) {
-		availableSpaceOnServer -= bytes;
+		currentAvailableSpaceOnServer -= bytes;
 		//System.out.println("REMOVED "+bytes+" BYTES FROM THE AVAILABLE SPACE!");
 	}
 
