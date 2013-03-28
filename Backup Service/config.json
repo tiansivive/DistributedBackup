@@ -1,9 +1,9 @@
 {
-	"availableSpaceOnServer":100,
+	"availableSpaceOnServer":1000,
 	"protocolVersion":"1.0",
 	"filesToBackup": [ 
 		{
-			"path":"config.json",
+			"path":"config.json1",
 			"replicationDegree":1
 		},
 		{
@@ -23,7 +23,11 @@
 			"replicationDegree":2
 		},
 		{
-			"path":"Z:/tmp/testef",
+			"path":"Z:/tmp/teste1",
+			"replicationDegree":1
+		},
+		{
+			"path":"Z:/tmp/teste/imagem2.jpg",
 			"replicationDegree":1
 		}
 	]

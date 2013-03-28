@@ -186,7 +186,8 @@ public class Server{
 		
 		Map<String, Set<Integer>> chunksToBeRemoved = new HashMap<String,Set<Integer>>();
 		HashMap<String, Map<Integer,ReplicationInfo>> tmp = getControl_thread().getReplicationDegreeOfOthersChunks();
-					
+		String fileSeparator = System.getProperty("file.separator");
+		
 		Iterator<String> fileIterator = tmp.keySet().iterator();
 		while(true){
 			while(fileIterator.hasNext()){
@@ -200,11 +201,26 @@ public class Server{
 		            if(onlySelectChunksWithMoreThanDesiredReplication){
 			            if(pair.getValue().currentReplication > pair.getValue().desiredReplication){
 			            	chunksSurplus.add(pair.getKey());
-			            	amountOfSpaceReclaimed += Values.number_of_bytes_in_chunk; // TODO it might be smaller
+			            	
+			            	File chunk = new File(Values.directory_to_backup_files + fileSeparator 
+			            								+ fileID + fileSeparator
+			            								+ "chunk_" + pair.getKey());
+			            	amountOfSpaceReclaimed += chunk.length();; // TODO it might be smaller
+			            	
+			            	System.out.println("ADDING CHUNK NUMBER " + pair.getKey() 
+									+ " FROM FILE " + fileID 
+									+ " TO REMOVE LIST");   
 			            }
 		            }else{
 		            	chunksSurplus.add(pair.getKey());
-		            	amountOfSpaceReclaimed += Values.number_of_bytes_in_chunk; // TODO it might be smaller
+		            	File chunk = new File(Values.directory_to_backup_files + fileSeparator 
+													+ fileID + fileSeparator
+													+ "chunk_" + pair.getKey());
+		            	amountOfSpaceReclaimed += chunk.length();; // TODO it might be smaller
+		            	
+		            	System.out.println("ADDING CHUNK NUMBER " + pair.getKey() 
+								+ " FROM FILE " + fileID 
+								+ " TO REMOVE LIST");
 		            }
 		        }
 		        
@@ -220,7 +236,8 @@ public class Server{
 			}
 		}
 		
-		String fileSeparator = System.getProperty("file.separator");
+		System.out.println("GOING TO REMOVE " + amountOfSpaceReclaimed + " BYTES");
+		
 		fileIterator = chunksToBeRemoved.keySet().iterator();
 		while(fileIterator.hasNext()){
 			String fileID = (String)fileIterator.next();
@@ -628,6 +645,8 @@ public class Server{
 			}else{
 				System.out.println("FILE NOT FOUND");
 			}
+		}else{
+			System.out.println("SOMEBODY ALREADY SENT THE PUTCHUNK REPONSE TO A REMOVED MESSAGE!");
 		}
 	}
 

@@ -24,6 +24,7 @@ import java.nio.file.WatchService;
 import java.nio.file.attribute.BasicFileAttributes;
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.Map;
 
 import javax.sql.rowset.spi.SyncResolver;
@@ -43,12 +44,14 @@ public class BackupChannelThread extends ChannelThread {
     private Thread backupDirectoryWatcher;
       
     private HashMap<String,ArrayList<Integer>> backedFiles;
+    private HashSet<String> ignorePUTCHUNKs;
        
 	private BackupChannelThread(Server server) {
 		
 		this.setName("BackupChannelThread");
 	    File backupDirectory = new File(Values.directory_to_backup_files);
 	    backedFiles = new HashMap<String,ArrayList<Integer>>();
+	    ignorePUTCHUNKs = new HashSet<String>();
 	    
 	    if(backupDirectory.exists()) {
 	        if(backupDirectory.isDirectory()) {
@@ -132,86 +135,94 @@ public class BackupChannelThread extends ChannelThread {
 	        String headerPattern = "^PUTCHUNK 1.0 [a-z0-9]{64} [0-9]{1,6} [1-9]$";
 	        System.out.println("------------------------Received backup request------------------------");
 	        String[] fields = requestHeader.split(" ");
-	        
+
 	        if(requestHeader.matches(headerPattern)) {
-	        	
-	            try {
-	                // waiting between 0 and 400 miliseconds before deciding if it will save the chunk
-	                int delay = Server.rand.nextInt(Values.server_sending_packets_delay);
-	                Thread.sleep(delay);
-	            } catch (InterruptedException e1) {
-	                e1.printStackTrace();
-	            }
-	            
-	            synchronized (getServer().getReplicasRemovedFromOtherMachines()) {
-	            	getServer().getReplicasRemovedFromOtherMachines().remove(fields[2]+":"+fields[3]); // this machine doesn't need to start backup subprotocol
-	            }
 
-	            boolean saveIt = false;
-	            
-	            synchronized (backedFiles) {
-	                ArrayList<Integer> chunksBackedUp = backedFiles.get(fields[2]);
-	                if(chunksBackedUp != null) {
-	                    if(chunksBackedUp.contains(Integer.parseInt(fields[3]))) { // we have backed it up before
-	                        sendStoredMessage(fields);
-	                    } else {
-	                        saveIt = true;
-	                    }
-	                } else { // we have no chunk from this file
-	                	saveIt = true;
-	                }
+	        	try {
+	        		// waiting between 0 and 400 miliseconds before deciding if it will save the chunk
+	        		int delay = Server.rand.nextInt(Values.server_sending_packets_delay);
+	        		Thread.sleep(delay);
+	        	} catch (InterruptedException e1) {
+	        		e1.printStackTrace();
+	        	}
 
-	                if(saveIt) {
-	                	if(getServer().getAvailableSpaceOnServer() > Values.number_of_bytes_in_chunk) {
-	                		ControlChannelThread cct = getServer().getControl_thread();
-	                		if(cct.getNumberOfBackupsFromChunkNo(fields[2], Integer.parseInt(fields[3])) < Integer.parseInt(fields[4])) { // we save it
+	        	synchronized (getServer().getReplicasRemovedFromOtherMachines()) {
+	        		getServer().getReplicasRemovedFromOtherMachines().remove(fields[2]+":"+fields[3]); // this machine doesn't need to start backup subprotocol after receiving REMOVED message
+	        	}
 
-	                			sendStoredMessage(fields);
-	                			String data = request.substring(endOfHeaderIndex+4);
-	                			String fileSeparator = System.getProperty("file.separator");
-	                			File directory = new File(Values.directory_to_backup_files+fileSeparator+fields[2]);
-	                			File output = new File(Values.directory_to_backup_files+fileSeparator+fields[2]+fileSeparator+"chunk_"+fields[3]);
+	        	if(!this.ignorePUTCHUNKs.contains(fields[2] +":"+ fields[3])){
 
-	                			try {
-	                				if(!directory.mkdirs() && !directory.exists()) {
-	                					System.out.println("ERROR CREATING FILE DIRECTORY.");
-	                					send_REMOVED_messageForChunk(fields[2], Integer.parseInt(fields[3]));
-	                				} else {
-	                					FileOutputStream fop = new FileOutputStream(output);
-	                					fop.write(data.getBytes());
-	                					fop.flush();
-	                					fop.close();
-	                					cct.incrementReplicationOfOtherChunk(fields[2], Integer.parseInt(fields[3]));
-	                					getServer().getControl_thread().setChunksDesiredReplication(fields[2], Integer.parseInt(fields[3]), Integer.parseInt(fields[4]));
-	                					
-	                					try {
-	                						backedFiles.get(fields[2]).add(new Integer(fields[3]));
-	                					} catch (NullPointerException e) {
-	                						ArrayList<Integer> chunks = new ArrayList<Integer>();
-	                						chunks.add(new Integer(fields[3]));
-	                						backedFiles.put(fields[2],chunks);
-	                					}
-	                					getServer().removeThisSpaceFromServer(data.length());
-	                				}
-	                			} catch (IOException e) {
-	                				e.printStackTrace();
-	                			}
-	                		} else {
-	                			System.out.println("CHUNK ALREADY HAS DESIRED REPLICATION DEGREE - NO CHUNK BACKUP HERE");
-	                		}
-	                	} else {
-	                		System.out.println("WE DON'T HAVE SPACE FOR THIS");
-	                	}
-	                } else {
-	                    System.out.println("WE'VE SAVED THIS CHUNK BEFORE. JUST SENDING STORED MESSAGE.");
-	                }
-	            } 
-	        } else {
-	            System.out.println("Invalid header. Ignoring request");
+	        		boolean saveIt = false;
+
+	        		synchronized (backedFiles) {
+	        			ArrayList<Integer> chunksBackedUp = backedFiles.get(fields[2]);
+	        			if(chunksBackedUp != null) {
+	        				if(chunksBackedUp.contains(Integer.parseInt(fields[3]))) { // we have backed it up before
+	        					sendStoredMessage(fields);
+	        				} else {
+	        					saveIt = true;
+	        				}
+	        			} else { // we have no chunk from this file
+	        				saveIt = true;
+	        			}
+
+	        			if(saveIt) {
+	        				if(getServer().getAvailableSpaceOnServer() > Values.number_of_bytes_in_chunk) {
+	        					ControlChannelThread cct = getServer().getControl_thread();
+	        					if(cct.getNumberOfBackupsFromChunkNo(fields[2], Integer.parseInt(fields[3])) < Integer.parseInt(fields[4])) { // we save it
+
+	        						sendStoredMessage(fields);
+	        						String data = request.substring(endOfHeaderIndex+4);
+	        						String fileSeparator = System.getProperty("file.separator");
+	        						File directory = new File(Values.directory_to_backup_files+fileSeparator+fields[2]);
+	        						File output = new File(Values.directory_to_backup_files+fileSeparator+fields[2]+fileSeparator+"chunk_"+fields[3]);
+
+	        						try {
+	        							if(!directory.mkdirs() && !directory.exists()) {
+	        								System.out.println("ERROR CREATING FILE DIRECTORY.");
+	        								send_REMOVED_messageForChunk(fields[2], Integer.parseInt(fields[3]));
+	        							} else {
+	        								FileOutputStream fop = new FileOutputStream(output);
+	        								fop.write(data.getBytes());
+	        								fop.flush();
+	        								fop.close();
+	        								cct.incrementReplicationOfOtherChunk(fields[2], Integer.parseInt(fields[3]));
+	        								getServer().getControl_thread().setChunksDesiredReplication(fields[2], Integer.parseInt(fields[3]), Integer.parseInt(fields[4]));
+
+	        								try {
+	        									backedFiles.get(fields[2]).add(new Integer(fields[3]));
+	        								} catch (NullPointerException e) {
+	        									ArrayList<Integer> chunks = new ArrayList<Integer>();
+	        									chunks.add(new Integer(fields[3]));
+	        									backedFiles.put(fields[2],chunks);
+	        								}
+	        								getServer().removeThisSpaceFromServer(data.length());
+	        							}
+	        						} catch (IOException e) {
+	        							e.printStackTrace();
+	        						}
+	        					} else {
+	        						System.out.println("CHUNK ALREADY HAS DESIRED REPLICATION DEGREE - NO CHUNK BACKUP HERE");
+	        					}
+	        				} else {
+	        					System.out.println("WE DON'T HAVE SPACE FOR THIS");
+	        				}
+	        			} else {
+	        				System.out.println("WE'VE SAVED THIS CHUNK BEFORE. JUST SENDING STORED MESSAGE.");
+	        			}
+	        		} 
+	        	} else {
+	        		System.out.println("IGNORING PUTCHUNK REQUEST");
+	        		synchronized(ignorePUTCHUNKs){
+	        			this.ignorePUTCHUNKs.remove(fields[2]+":"+fields[3]);
+	        		}
+	        	}
+	        }else{
+	        	System.out.println("Invalid header. Ignoring request");
 	        }
 
 	    }else{
-	        System.out.println("No <CRLF><CRLF> detected. Ignoring request");
+	    	System.out.println("No <CRLF><CRLF> detected. Ignoring request");
 	    }
 	}
 	
@@ -247,6 +258,8 @@ public class BackupChannelThread extends ChannelThread {
 			byte[] buf = ProtocolMessage.toBytes(head, null);
 			DatagramPacket packet = new DatagramPacket(buf, buf.length, Values.multicast_control_group_address, Values.multicast_control_group_port);			
 			
+			addIgnorePUTCHUNK(fileId, Integer.toString(chunkNum));
+			
 			int delay = Server.rand.nextInt(Values.backup_thread_response_delay);
 			Thread.sleep(delay);
 			ControlChannelThread.getMulticast_control_socket().send(packet);
@@ -261,6 +274,11 @@ public class BackupChannelThread extends ChannelThread {
 		}
 	}
 	
+	public void addIgnorePUTCHUNK(String file, String chunkNum){
+		synchronized (ignorePUTCHUNKs) {
+			this.ignorePUTCHUNKs.add(file + ":" + chunkNum);
+		}
+	}
 	
 	private class WatchDir extends Thread {
         private final WatchService watcher;

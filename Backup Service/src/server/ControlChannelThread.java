@@ -629,7 +629,7 @@ public class ControlChannelThread extends ChannelThread{
 			                    	Gson gson = new Gson();
 			                    	@SuppressWarnings("unchecked")
 									HashMap<String, Map<Integer,ReplicationInfo>> toSave 
-			                    				= gson.fromJson(new BufferedReader(new FileReader("ReplicationDegreeOfOtherChunks")), HashMap.class);
+			                    				= gson.fromJson(new BufferedReader(new FileReader("ReplicationDegreeOfOthersChunks")), HashMap.class);
 			                    	
 			                    	File file = new File("ReplicationInfoOfOtherChunks");
 			                    	FileOutputStream fos = new FileOutputStream(file);
