@@ -1,24 +1,25 @@
 {
-	"availableSpaceOnServer":1000,
+	"availableSpaceOnServer":100000,
+	"protocolVersion":"1.0"
 	"filesToBackup": [ 
 		{
 			"path":"config.json",
 			"replicationDegree":1
 		},
 		{
-			"path":"\Plerx",
+			"path":"Plerx",
 			"replicationDegree":1
 		},
 		{
-			"path":"/Users/migueloliveira/Dropbox/Stuff/bussiness_cards",
-			"replicationDegree":2
+			"path":"/Users/migueloliveira/Desktop/testes",
+			"replicationDegree":1
 		},
 		{
 			"path":"C:/Users/ei09144/Downloads/ESOF.eapk",
 			"replicationDegree":2
 		},
 		{
-			"path":"/Users/migueloliveira/Dropbox/Stuff/Wallpapers",
+			"path":"/Users/migueloliveira/Dropbox/Stuff/Walefweflpapers",
 			"replicationDegree":2
 		},
 		{

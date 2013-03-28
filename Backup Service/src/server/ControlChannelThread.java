@@ -237,6 +237,9 @@ public class ControlChannelThread extends ChannelThread{
 	            }
 	            
 	        }else{
+	        	
+	        	// TODO HAS TO CHECK IF SOMEONE HAS ALREADY SENT A DO NOT REPLY MSG!
+	        	
 	            head = new String(Values.do_not_reply_to_getchunk_message + " "
                         + Values.protocol_version + " "
                         +  message.getFileID() + " "
@@ -258,10 +261,7 @@ public class ControlChannelThread extends ChannelThread{
                 RestoreChannelThread.getMulticast_restore_socket().send(packet);
 	        }
 	        input.close();
-	    } else {
-	        // TODO TELL RESTORE THREAD TO IGNORE CHUNKS MESSAGES FOR THIS FILE ID AND CHUNK NUMBER
-	    }
-
+	    } 
 	}
 
 	private void process_StoredMessage(String[] requestFields, InetAddress src) throws InterruptedException{
@@ -348,7 +348,7 @@ public class ControlChannelThread extends ChannelThread{
 		int chunkNum = message.getChunkNumber();
 		
 		getServer().addRemovedMessageInfomation(fileID, Integer.toString(chunkNum));
-		int delay = Server.rand.nextInt(Values.backup_thread_response_delay +1);
+		int delay = Server.rand.nextInt(Values.backup_thread_response_delay)+100; // between 100 and 500 ms
 		Thread.sleep(delay);
 
 		System.out.println(Thread.currentThread().getName() + " RECEIVED REMOVED MESSAGE");
@@ -363,35 +363,7 @@ public class ControlChannelThread extends ChannelThread{
 			}else{
 				System.out.println(Thread.currentThread().getName() + " CHUNK NOT RECOGNIZED");
 			}
-		}else{
-			/*synchronized(storedMessagesInformation_Cleaner){
-				
-				Gson gson = new Gson();
-				 
-		        @SuppressWarnings("unchecked")
-				HashMap<String, Map<Integer,ReplicationInfo>> tmp = gson.fromJson(new BufferedReader(new FileReader("ReplicationInfoOfOtherChunks")), HashMap.class);
-				if(tmp.containsKey(fileID)){
-					if(tmp.get(fileID).containsKey(chunkNum)){
-						tmp.get(fileID).get(chunkNum).currentReplication--;
-						if(!tmp.get(fileID).get(chunkNum).hasReachedDesiredReplication()){
-							getServer().buildPacketFrom_REMOVED_Message(message, tmp.get(fileID).get(chunkNum).desiredReplication);
-						}
-					}else{
-						System.out.println(Thread.currentThread().getName() + " CHUNK NOT RECOGNIZED");
-					}
-				}else{
-					System.out.println(Thread.currentThread().getName() + " FILE NOT RECOGNIZED");
-				}
-				File file = new File("ReplicationInfoOfOtherChunks");
-				FileOutputStream fos = new FileOutputStream(file);
-				fos.write(gson.toJson(tmp).getBytes()); //Overwrites file
-				fos.flush();
-				fos.close();
-				
-			}*/
-			
 		}
-
 	}
 
 	public void updateRequestedBackups(Header info){
@@ -462,16 +434,16 @@ public class ControlChannelThread extends ChannelThread{
 	            	//in that case, we consider the desired replication 0, which will then be quickly updated to the correct value.
 	            	//In any case, this desiredReplication value isn't used for the PUTCHUNK protocol, rather, it's only used when restoring a file
 	                chunksInfo.put(chunkNum, new ReplicationInfo(0, 1));
-	                //System.out.println(Thread.currentThread().getName() + " FILE EXISTS BUT CHUNK DOES NOT - NEW CHUNK WITH CURRENT REPLICATION 1 |"+fileId+":"+chunkNum+"|"
-	                					//+"\nSET DESIRED REPLICATION TO 0");
+	                System.out.println(Thread.currentThread().getName() + " FILE EXISTS BUT CHUNK DOES NOT - NEW CHUNK WITH CURRENT REPLICATION 1 |"+fileId+":"+chunkNum+"|"
+	                					+"\nSET DESIRED REPLICATION TO 0");
 	            }
 	        }
 	        else {
 	            chunksInfo = new HashMap<Integer,ReplicationInfo>();
 	            chunksInfo.put(chunkNum, new ReplicationInfo(0, 1));//Same as before, but in case the fileID doesn't exist yet
 	            replicationDegreeOfOthersChunks.put(fileId, chunksInfo);
-	            //System.out.println("NEW FILE - CHUNK WITH CURRENT REPLICATION 1 |"+fileId+":"+chunkNum+"|"
-	            	//				+"\nSET DESIRED REPLICATION TO 0");
+	            System.out.println("NEW FILE - CHUNK WITH CURRENT REPLICATION 1 |"+fileId+":"+chunkNum+"|"
+	            					+"\nSET DESIRED REPLICATION TO 0");
 	        }
 	    }
 	}
@@ -693,7 +665,6 @@ public class ControlChannelThread extends ChannelThread{
 			                        	//storedMessagesReceived.clear();
 			                        }
 		                    	}
-		                        // TODO anything else needing cleanup?
 		                    }
 		                }
 		                this.setReadyToWork(true);              

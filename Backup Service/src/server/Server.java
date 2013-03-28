@@ -32,6 +32,7 @@ public class Server{
 	private HashSet<String> replicasRemovedFromOtherMachines; 
 	private boolean hasBackedUpConfigFiles;
 	private Gson gson;
+	private long availableSpaceOnServer; // in bytes
 	
 	
 	private Server() {
@@ -70,13 +71,13 @@ public class Server{
 	public void mainLoop() {
 		run_threads();
 		createNecessaryFiles();
-		//TODO CREATE ALL REQUIRED FILES IF THEY'RE NONEXISTANT
 		
 		gson = new Gson();
 
         try {
             bufferedReader = new BufferedReader(new FileReader("config.json"));
             config = gson.fromJson(bufferedReader, Config.class);
+            availableSpaceOnServer = config.availableSpaceOnServer * 1000;
         } catch (FileNotFoundException e) {
             System.out.println("Configuration file is missing. Shutting down the server.");
             System.exit(-1);
@@ -181,14 +182,13 @@ public class Server{
 		            if(onlySelectChunksWithMoreThanDesiredReplication){
 			            if(pair.getValue().currentReplication > pair.getValue().desiredReplication){
 			            	chunksSurplus.add(pair.getKey());
-			            	amountOfSpaceReclaimed += Values.number_of_bytes_in_chunk;
+			            	amountOfSpaceReclaimed += Values.number_of_bytes_in_chunk; // TODO it might be smaller
 			            }
 		            }else{
 		            	chunksSurplus.add(pair.getKey());
-		            	amountOfSpaceReclaimed += Values.number_of_bytes_in_chunk;
+		            	amountOfSpaceReclaimed += Values.number_of_bytes_in_chunk; // TODO it might be smaller
 		            }
 		        }
-		        
 		        
 		        if(!chunksSurplus.isEmpty()){
 		        	chunksToBeRemoved.put(fileID, chunksSurplus);
@@ -202,7 +202,6 @@ public class Server{
 			}
 		}
 		
-		
 		String fileSeparator = System.getProperty("file.separator");
 		fileIterator = chunksToBeRemoved.keySet().iterator();
 		while(fileIterator.hasNext()){
@@ -215,6 +214,7 @@ public class Server{
 				File chunk = new File(Values.directory_to_backup_files + fileSeparator 
 											+ fileID + fileSeparator
 											+ "chunk_" + chunkNum);
+				
 				chunk.delete();
 				getBackup_thread().send_REMOVED_messageForChunk(fileID, chunkNum);
 				chunksIterator.remove();
@@ -240,7 +240,6 @@ public class Server{
 				fos.close();
 			}
 		} catch (IOException e) {
-			// TODO Auto-generated catch block
 			e.printStackTrace();
 		}
 	}
@@ -524,13 +523,13 @@ public class Server{
 	        try {
 	            Thread.sleep(delay);
 	            BackupChannelThread.getMulticast_backup_socket().send(pair.getValue());
-	            System.out.println("----------------Sent PUTCHUNK message----------------\n");
+	            System.out.println("----------------Sent PUTCHUNK message----------------");
 	        } catch (InterruptedException | IOException e) {
 	            e.printStackTrace();
 	            // TODO what to do here?
 	        }
 	    }
-	    this.getControl_thread().notifyDaemonSupervisor();//Some improving needs to be done
+	    getControl_thread().notifyDaemonSupervisor();
 	}
 
 	public void send_file(String fileId, String chunkNumber) {
@@ -582,10 +581,10 @@ public class Server{
 
 				byte[] buf = ProtocolMessage.toBytes(head, chunkData);
 				DatagramPacket packet = new DatagramPacket(buf, buf.length, Values.multicast_backup_group_address, Values.multicast_backup_group_port);
-				this.packetsQueue.put(message.getFileID()+":"+message.getChunkNumber(), packet);
-				this.getControl_thread().updateRequestedBackups(new Header(head));
+				packetsQueue.put(message.getFileID()+":"+message.getChunkNumber(), packet);
+				getControl_thread().updateRequestedBackups(new Header(head));
 				BackupChannelThread.getMulticast_backup_socket().send(packet);
-				this.getControl_thread().notifyDaemonSupervisor();
+				getControl_thread().notifyDaemonSupervisor();
 
 			}else{
 				System.out.println("FILE NOT FOUND");
@@ -634,12 +633,15 @@ public class Server{
 		RestoreChannelThread.init_socket();
 
 	}
+	
+	public long getAvailableSpaceOnServer() {
+		return availableSpaceOnServer;
+	}
 
 	public void addRemovedMessageInfomation(String fileID, String chunkNum){
 		synchronized (replicasRemovedFromOtherMachines) {
 			this.replicasRemovedFromOtherMachines.add(fileID+":"+chunkNum);
 		}
-		
 	}
 	
 	public ControlChannelThread getControl_thread() {
@@ -689,7 +691,8 @@ public class Server{
     }
 
     private class Config {
-        public int availableSpaceOnServer;
+        public int availableSpaceOnServer; // KB
+        public String protocolVersion;
         public ArrayList<FileToBackup> filesToBackup;
     }
 }

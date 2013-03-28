@@ -133,10 +133,7 @@ public class BackupChannelThread extends ChannelThread {
 	        System.out.println("------------------------Received backup request------------------------");
 	        String[] fields = requestHeader.split(" ");
 	        
-	        String debugging = "";
-
 	        if(requestHeader.matches(headerPattern)) {
-	        	debugging += "ENTERED THIS! ";
 	        	/*
 	        	synchronized (getServer().getReplicasRemovedFromOtherMachines()) {
 	        		if(getServer().getReplicasRemovedFromOtherMachines().contains(fields[2]+":"+fields[3])){ //If it's in the map then this machine needs not send PUTCHUNK
@@ -147,11 +144,15 @@ public class BackupChannelThread extends ChannelThread {
 	        	*/
 	        	
 	            try {
-	                // waiting between 100 and 400 miliseconds before deciding if it will save the chunk
+	                // waiting between 0 and 400 miliseconds before deciding if it will save the chunk
 	                int delay = Server.rand.nextInt(Values.server_sending_packets_delay);
 	                Thread.sleep(delay);
 	            } catch (InterruptedException e1) {
 	                e1.printStackTrace();
+	            }
+	            
+	            synchronized (getServer().getReplicasRemovedFromOtherMachines()) {
+	            	getServer().getReplicasRemovedFromOtherMachines().remove(fields[2]+":"+fields[3]); // this machine doesn't need to start backup subprotocol
 	            }
 
 	            boolean saveIt = false;
@@ -165,46 +166,49 @@ public class BackupChannelThread extends ChannelThread {
 	                        saveIt = true;
 	                    }
 	                } else { // we have no chunk from this file
-	                    saveIt = true;
+	                	saveIt = true;
 	                }
 
 	                if(saveIt) {
-	                	debugging += " SAVING IT!!!";
-	                    ControlChannelThread cct = getServer().getControl_thread();
-	                    if(cct.getNumberOfBackupsFromChunkNo(fields[2], Integer.parseInt(fields[3])) < Integer.parseInt(fields[4])) { // we save it
-	                        
-	                        sendStoredMessage(fields);
-	                        String data = request.substring(endOfHeaderIndex+4);
-	                        String fileSeparator = System.getProperty("file.separator");
-	                        File directory = new File(Values.directory_to_backup_files+fileSeparator+fields[2]);
-	                        File output = new File(Values.directory_to_backup_files+fileSeparator+fields[2]+fileSeparator+"chunk_"+fields[3]);
+	                	//if(getServer().getAvailableSpaceOnServer() > Values.number_of_bytes_in_chunk) {
+	                		ControlChannelThread cct = getServer().getControl_thread();
+	                		if(cct.getNumberOfBackupsFromChunkNo(fields[2], Integer.parseInt(fields[3])) < Integer.parseInt(fields[4])) { // we save it
 
-	                        try {
-	                            if(!directory.mkdirs() && !directory.exists()) {
-	                                System.out.println("ERROR CREATING FILE DIRECTORY.");
-	                                //TODO SEND REMOVED NOTIFICATION!!!!
-	                            } else {
-	                                FileOutputStream fop = new FileOutputStream(output);
-	                                fop.write(data.getBytes());
-	                                fop.flush();
-	                                fop.close();
-	                                cct.incrementReplicationOfOtherChunk(fields[2], Integer.parseInt(fields[3]));
-	                                
-	                                try {
-                                        backedFiles.get(fields[2]).add(new Integer(fields[3]));
-                                    } catch (NullPointerException e) {
-                                        ArrayList<Integer> chunks = new ArrayList<Integer>();
-                                        chunks.add(new Integer(fields[3]));
-                                        backedFiles.put(fields[2],chunks);
-                                    }
-	                                System.out.println(debugging);
-	                            }
-	                        } catch (IOException e) {
-	                            e.printStackTrace();
-	                        }
-	                    } else {
-	                        System.out.println("CHUNK ALREADY HAS DESIRED REPLICATION DEGREE - NO CHUNK BACKUP HERE");
-	                    }
+	                			sendStoredMessage(fields);
+	                			String data = request.substring(endOfHeaderIndex+4);
+	                			String fileSeparator = System.getProperty("file.separator");
+	                			File directory = new File(Values.directory_to_backup_files+fileSeparator+fields[2]);
+	                			File output = new File(Values.directory_to_backup_files+fileSeparator+fields[2]+fileSeparator+"chunk_"+fields[3]);
+
+	                			try {
+	                				if(!directory.mkdirs() && !directory.exists()) {
+	                					System.out.println("ERROR CREATING FILE DIRECTORY.");
+	                					//TODO SEND REMOVED NOTIFICATION!!!!
+	                				} else {
+	                					FileOutputStream fop = new FileOutputStream(output);
+	                					fop.write(data.getBytes());
+	                					fop.flush();
+	                					fop.close();
+	                					cct.incrementReplicationOfOtherChunk(fields[2], Integer.parseInt(fields[3]));
+	                					getServer().getControl_thread().setChunksDesiredReplication(fields[2], Integer.parseInt(fields[3]), Integer.parseInt(fields[4])); // TODO TESTING
+
+	                					try {
+	                						backedFiles.get(fields[2]).add(new Integer(fields[3]));
+	                					} catch (NullPointerException e) {
+	                						ArrayList<Integer> chunks = new ArrayList<Integer>();
+	                						chunks.add(new Integer(fields[3]));
+	                						backedFiles.put(fields[2],chunks);
+	                					}
+	                				}
+	                			} catch (IOException e) {
+	                				e.printStackTrace();
+	                			}
+	                		} else {
+	                			System.out.println("CHUNK ALREADY HAS DESIRED REPLICATION DEGREE - NO CHUNK BACKUP HERE");
+	                		}
+	                	//} else {
+	                		//System.out.println("WE DON'T HAVE SPACE FOR THIS");
+	                	//}
 	                } else {
 	                    System.out.println("WE'VE SAVED THIS CHUNK BEFORE. JUST SENDING STORED MESSAGE.");
 	                }
@@ -235,7 +239,7 @@ public class BackupChannelThread extends ChannelThread {
 		int numberOfChunks = backedFiles.get(fileName).size();
 		
 		while(numberOfChunks-- > 0){
-			send_REMOVED_messageForChunk(fileName, backedFiles.get(fileName).get(numberOfChunks) -1); //sends message in reverse order
+			send_REMOVED_messageForChunk(fileName, backedFiles.get(fileName).get(numberOfChunks-1)); //sends message in reverse order
 		}
 	
 	}
@@ -261,7 +265,6 @@ public class BackupChannelThread extends ChannelThread {
 									+ "--------------------------------------------------------------");
 			
 		} catch (IOException | InterruptedException e) {
-			// TODO Auto-generated catch block
 			e.printStackTrace();
 		}
 	}
@@ -271,7 +274,6 @@ public class BackupChannelThread extends ChannelThread {
         private final WatchService watcher;
         private final Map<WatchKey,Path> keys;
         private boolean trace = false;
-        private String fileSeparator;
         
         @SuppressWarnings("unchecked")
         <T> WatchEvent<T> cast(WatchEvent<?> event) {
@@ -283,7 +285,6 @@ public class BackupChannelThread extends ChannelThread {
             
             watcher = FileSystems.getDefault().newWatchService();
             keys = new HashMap<WatchKey,Path>();
-            fileSeparator = System.getProperty("file.separator");
 
             registerAll(dir);
             
@@ -373,19 +374,17 @@ public class BackupChannelThread extends ChannelThread {
                             synchronized (backedFiles) {
                                	send_REMOVED_messageForFile(fileName);
                                 backedFiles.remove(fileName);
-                                // TODO SEND REMOVED NOTIFICATION!!!!!
                             }
                         } else if(fileName.matches(Values.chunkPattern)) {
                             String fileId = child.getParent().getFileName().toString();
+                            
                             if(fileId.matches(Values.fileIdPattern)) {
                                 synchronized (backedFiles) {
-                                	
                                 	send_REMOVED_messageForChunk(fileId, Integer.parseInt(fileName.substring(6)));
                                     backedFiles.get(fileId).remove(Integer.parseInt(fileName.substring(6)));
                                     if(backedFiles.get(fileId).size() == 0) {
                                         backedFiles.remove(fileId);
                                     }
-                                    // TODO SEND REMOVED NOTIFICATION!!!!!
                                 }
                             }
                         }
