@@ -89,6 +89,18 @@ public class ControlChannelThread extends ChannelThread{
 		storedMessagesReceived = new HashMap<InetAddress,Map<String,ArrayList<Integer>>>();
 		ourRequestedBackups = new HashMap<String,Map<Integer,ReplicationInfo> >();
 		
+		// load old replicationDegreeOfOthersChunk info
+		Gson gson = new Gson();
+		
+		BufferedReader bufferedReader;
+		try {
+			bufferedReader = new BufferedReader(new FileReader("ReplicationInfoOfOtherChunks"));
+			replicationDegreeOfOthersChunks = gson.fromJson(bufferedReader, HashMap.class);
+			System.out.println("REPLICATION DEGREES : "+gson.toJson(replicationDegreeOfOthersChunks));
+		} catch (FileNotFoundException e) {
+			e.printStackTrace();
+		}
+		
 		setServer(server);
 		this.initializeBackgroundMaintenanceProcesses();
 	}
