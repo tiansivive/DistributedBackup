@@ -98,8 +98,8 @@ public class Server{
         }
         
         loadBackedUpFiles();
-        createNecessaryFiles();
         run_threads();
+        createNecessaryFiles();
 
         bufferedReader = new BufferedReader(new InputStreamReader(System.in));
         
