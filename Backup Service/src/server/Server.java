@@ -168,7 +168,7 @@ public class Server{
 		String userInput;
 		int spaceToReclaim;
 		while(true){
-			System.out.println("\nHow many KB? ");
+			System.out.println("\nHow many MB? ");
 			userInput = bufferedReader.readLine();
 			try{
 				spaceToReclaim = Integer.parseInt(userInput);
@@ -179,13 +179,13 @@ public class Server{
 			}
 		}
 
-		spaceToReclaim = spaceToReclaim * 1000; //Number of bytes
+		spaceToReclaim = spaceToReclaim * 1000 * 1000; //Number of bytes
 		int amountOfSpaceReclaimed = 0;
 		
 		boolean onlySelectChunksWithMoreThanDesiredReplication = true;
 		
 		Map<String, Set<Integer>> chunksToBeRemoved = new HashMap<String,Set<Integer>>();
-		HashMap<String, Map<Integer,ReplicationInfo>> tmp = getControl_thread().getReplicationDegreeOfOthersChunks();
+		HashMap<String, Map<Integer,Integer>> tmp = getControl_thread().getReplicationDegreeOfOthersChunks();
 		String fileSeparator = System.getProperty("file.separator");
 		
 		Iterator<String> fileIterator = tmp.keySet().iterator();
@@ -193,32 +193,32 @@ public class Server{
 			while(fileIterator.hasNext()){
 				
 				String fileID = (String)fileIterator.next();
-				Iterator<Entry<Integer, ReplicationInfo>> chunksIterator = tmp.get(fileID).entrySet().iterator();    
+				Iterator<Integer> chunksIterator = tmp.get(fileID).keySet().iterator();    
 				Set<Integer> chunksSurplus = new HashSet<Integer>();
 		        while(chunksIterator.hasNext()){
 		        	
-		            Map.Entry<Integer, ReplicationInfo> pair = chunksIterator.next();
+		            Integer chunkNum = chunksIterator.next();
 		            if(onlySelectChunksWithMoreThanDesiredReplication){
-			            if(pair.getValue().currentReplication > pair.getValue().desiredReplication){
-			            	chunksSurplus.add(pair.getKey());
+			            if(getControl_thread().hasChunkGotMoreThanDesiredNumberOfReplicas(fileID, chunkNum)){
+			            	chunksSurplus.add(chunkNum);
 			            	
 			            	File chunk = new File(Values.directory_to_backup_files + fileSeparator 
 			            								+ fileID + fileSeparator
-			            								+ "chunk_" + pair.getKey());
+			            								+ "chunk_" + chunkNum);
 			            	amountOfSpaceReclaimed += chunk.length();; // TODO it might be smaller
 			            	
-			            	System.out.println("ADDING CHUNK NUMBER " + pair.getKey() 
+			            	System.out.println("ADDING CHUNK NUMBER " + chunkNum 
 									+ " FROM FILE " + fileID 
 									+ " TO REMOVE LIST");   
 			            }
 		            }else{
-		            	chunksSurplus.add(pair.getKey());
+		            	chunksSurplus.add(chunkNum);
 		            	File chunk = new File(Values.directory_to_backup_files + fileSeparator 
 													+ fileID + fileSeparator
-													+ "chunk_" + pair.getKey());
+													+ "chunk_" + chunkNum);
 		            	amountOfSpaceReclaimed += chunk.length();; // TODO it might be smaller
 		            	
-		            	System.out.println("ADDING CHUNK NUMBER " + pair.getKey() 
+		            	System.out.println("ADDING CHUNK NUMBER " + chunkNum 
 								+ " FROM FILE " + fileID 
 								+ " TO REMOVE LIST");
 		            }
@@ -244,12 +244,13 @@ public class Server{
 			Iterator<Integer> chunksIterator = chunksToBeRemoved.get(fileID).iterator();
 			while(chunksIterator.hasNext()){
 				int chunkNum = (int)chunksIterator.next();
-				tmp.get(fileID).get(chunkNum).currentReplication--;
+				int currentReplication = tmp.get(fileID).get(chunkNum);
+				currentReplication--;
+				tmp.get(fileID).put(chunkNum, currentReplication);
 				
 				File chunk = new File(Values.directory_to_backup_files + fileSeparator 
 											+ fileID + fileSeparator
-											+ "chunk_" + chunkNum);
-				
+											+ "chunk_" + chunkNum);			
 				chunk.delete();
 				getBackup_thread().send_REMOVED_messageForChunk(fileID, chunkNum);
 				chunksIterator.remove();
@@ -258,12 +259,15 @@ public class Server{
 					+ fileID);
 			fileDir.delete();
 		}
+		
+		System.out.println("DONE RECLAIMING SPACE");
 	}
 
 	
 	private void createNecessaryFiles() {
 		
-		HashMap<String, Map<Integer,ReplicationInfo>> toSave = new HashMap<String, Map<Integer,ReplicationInfo>>();
+		HashMap<String, Integer> toInitializeDesiredReplication = new HashMap<String,Integer>();
+		HashMap<String, Map<Integer,Integer>> toInitializeReplicationDegree = new HashMap<String, Map<Integer,Integer>>();
 		gson = new Gson();
 
 		try{
@@ -276,7 +280,29 @@ public class Server{
 			try {
 				File replicationInfo = new File("ReplicationDegreeOfOthersChunks");
 				FileOutputStream fos = new FileOutputStream(replicationInfo);
-				fos.write(gson.toJson(toSave).getBytes());
+				fos.write(gson.toJson(toInitializeReplicationDegree).getBytes());
+				fos.flush();
+				fos.close();
+			} catch (IOException e1) {
+				// TODO Auto-generated catch block
+				e1.printStackTrace();
+			}
+
+
+		}
+		
+		
+		try{
+			synchronized(getControl_thread().getReplicationDegreeOfOthersChunks()){
+				getControl_thread().setDesiredReplicationOfFiles(
+						gson.fromJson(new BufferedReader(new FileReader("DesiredReplicationOfFiles")), HashMap.class));
+			}
+		} catch(FileNotFoundException e){
+
+			try {
+				File replicationInfo = new File("DesiredReplicationOfFiles");
+				FileOutputStream fos = new FileOutputStream(replicationInfo);
+				fos.write(gson.toJson(toInitializeDesiredReplication).getBytes());
 				fos.flush();
 				fos.close();
 			} catch (IOException e1) {

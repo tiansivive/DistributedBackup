@@ -137,7 +137,9 @@ public class BackupChannelThread extends ChannelThread {
 	        String[] fields = requestHeader.split(" ");
 
 	        if(requestHeader.matches(headerPattern)) {
-
+	        	
+	        	getServer().getControl_thread().setFilesDesiredReplication(fields[2], Integer.parseInt(fields[4]));
+	        	
 	        	try {
 	        		// waiting between 0 and 400 miliseconds before deciding if it will save the chunk
 	        		int delay = Server.rand.nextInt(Values.server_sending_packets_delay);
@@ -187,7 +189,7 @@ public class BackupChannelThread extends ChannelThread {
 	        								fop.flush();
 	        								fop.close();
 	        								cct.incrementReplicationOfOtherChunk(fields[2], Integer.parseInt(fields[3]));
-	        								getServer().getControl_thread().setChunksDesiredReplication(fields[2], Integer.parseInt(fields[3]), Integer.parseInt(fields[4]));
+	        								//getServer().getControl_thread().setChunksDesiredReplication(fields[2], Integer.parseInt(fields[3]), Integer.parseInt(fields[4]));
 
 	        								try {
 	        									backedFiles.get(fields[2]).add(new Integer(fields[3]));
