@@ -650,16 +650,15 @@ public class ControlChannelThread extends ChannelThread{
 									//this file it need to be inside a synchronized(cleanerThread) block
 
 									Gson gson = new Gson();
-									@SuppressWarnings("unchecked")
-									HashMap<String, Map<Integer,Integer>> toSaveReplicationDegree
-									= gson.fromJson(new BufferedReader(new FileReader("ReplicationDegreeOfOthersChunks")), HashMap.class);
-
-									File file = new File("ReplicationDegreeOfOthersChunks");
-									FileOutputStream fos = new FileOutputStream(file);
 
 									//UPDATE ReplicationDegreeOfOthersChunks FILE
 									synchronized(replicationDegreeOfOthersChunks){
 
+										@SuppressWarnings("unchecked")
+										HashMap<String, Map<Integer,Integer>> toSaveReplicationDegree
+											= gson.fromJson(new BufferedReader(new FileReader("ReplicationDegreeOfOthersChunks")), HashMap.class);
+
+										
 										Iterator<String> filesIterator = replicationDegreeOfOthersChunks.keySet().iterator();
 										while(filesIterator.hasNext()){ //Update information on file with information on replicationDegreeOfChunks
 
@@ -678,13 +677,15 @@ public class ControlChannelThread extends ChannelThread{
 											}
 										}
 
+										File file = new File("ReplicationDegreeOfOthersChunks");
+										FileOutputStream fos = new FileOutputStream(file);
 										String json = gson.toJson(toSaveReplicationDegree);
 										fos.write(json.getBytes());
 										fos.flush();
 										fos.close();
 										System.out.println(Thread.currentThread().getName() + " UPDATED ReplicationDegreeOfOthersChunks FILE");
 										//replicationDegreeOfOthersChunks.clear();
-										this.wait();
+										
 									}
 									
 									//UPDATE desiredReplicationOfFiles FILE
@@ -701,6 +702,8 @@ public class ControlChannelThread extends ChannelThread{
 
 										}
 
+										File file = new File("DesiredReplicationOfFiles");
+										FileOutputStream fos = new FileOutputStream(file);
 										String json = gson.toJson(toSaveDesiredReplication);
 										fos.write(json.getBytes());
 										fos.flush();

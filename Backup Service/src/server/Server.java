@@ -168,7 +168,7 @@ public class Server{
 		String userInput;
 		int spaceToReclaim;
 		while(true){
-			System.out.println("\nHow many MB? ");
+			System.out.println("\nHow many KB? ");
 			userInput = bufferedReader.readLine();
 			try{
 				spaceToReclaim = Integer.parseInt(userInput);
@@ -179,7 +179,7 @@ public class Server{
 			}
 		}
 
-		spaceToReclaim = spaceToReclaim * 1000 * 1000; //Number of bytes
+		spaceToReclaim = spaceToReclaim * 1000; //Number of bytes
 		int amountOfSpaceReclaimed = 0;
 		
 		boolean onlySelectChunksWithMoreThanDesiredReplication = true;
