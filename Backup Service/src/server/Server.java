@@ -9,6 +9,8 @@ import protocols.*;
 import server.ChannelThread.ReplicationInfo;
 
 import com.google.gson.*;
+import com.google.gson.reflect.*;
+import java.lang.reflect.*;
 
 import constantValues.Values;
 
@@ -68,11 +70,11 @@ public class Server{
 	    return instance;
 	}
 	
-	@SuppressWarnings("unchecked")
 	private void loadBackedUpFiles() {
 		try {
-            bufferedReader = new BufferedReader(new FileReader("backedUpFiles.json"));
-            backedUpFiles = gson.fromJson(bufferedReader, HashMap.class);
+			bufferedReader = new BufferedReader(new FileReader("backedUpFiles.json"));
+			Type stringBackedUpFile = new TypeToken<HashMap<String,BackedUpFile>>(){}.getType();
+			backedUpFiles = gson.fromJson(bufferedReader, stringBackedUpFile);
         } catch (FileNotFoundException e) {
         	// ignore, there weren't any backed up files
         }
