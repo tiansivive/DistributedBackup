@@ -89,7 +89,7 @@ public class Server{
         try {
             bufferedReader = new BufferedReader(new FileReader("config.json"));
             config = gson.fromJson(bufferedReader, Config.class);
-            initialAvailableSpaceOnServer = config.availableSpaceOnServer * 1000;
+            initialAvailableSpaceOnServer = config.availableSpaceOnServer * 1000 * 1000; //IN MEGABYTES
             currentAvailableSpaceOnServer = initialAvailableSpaceOnServer; // TODO we have to save the current space
 
         } catch (FileNotFoundException e) {
