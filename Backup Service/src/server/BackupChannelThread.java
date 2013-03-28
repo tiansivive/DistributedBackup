@@ -134,14 +134,6 @@ public class BackupChannelThread extends ChannelThread {
 	        String[] fields = requestHeader.split(" ");
 	        
 	        if(requestHeader.matches(headerPattern)) {
-	        	/*
-	        	synchronized (getServer().getReplicasRemovedFromOtherMachines()) {
-	        		if(getServer().getReplicasRemovedFromOtherMachines().contains(fields[2]+":"+fields[3])){ //If it's in the map then this machine needs not send PUTCHUNK
-	        			getServer().getReplicasRemovedFromOtherMachines().remove(fields[2]+":"+fields[3]); //Removes it so 
-	        		}
-	        	}
-	        	getServer().getControl_thread().setChunksDesiredReplication(fields[2], Integer.parseInt(fields[3]), Integer.parseInt(fields[4]));
-	        	*/
 	        	
 	            try {
 	                // waiting between 0 and 400 miliseconds before deciding if it will save the chunk
@@ -170,7 +162,7 @@ public class BackupChannelThread extends ChannelThread {
 	                }
 
 	                if(saveIt) {
-	                	//if(getServer().getAvailableSpaceOnServer() > Values.number_of_bytes_in_chunk) {
+	                	if(getServer().getAvailableSpaceOnServer() > Values.number_of_bytes_in_chunk) {
 	                		ControlChannelThread cct = getServer().getControl_thread();
 	                		if(cct.getNumberOfBackupsFromChunkNo(fields[2], Integer.parseInt(fields[3])) < Integer.parseInt(fields[4])) { // we save it
 
@@ -206,9 +198,9 @@ public class BackupChannelThread extends ChannelThread {
 	                		} else {
 	                			System.out.println("CHUNK ALREADY HAS DESIRED REPLICATION DEGREE - NO CHUNK BACKUP HERE");
 	                		}
-	                	//} else {
-	                		//System.out.println("WE DON'T HAVE SPACE FOR THIS");
-	                	//}
+	                	} else {
+	                		System.out.println("WE DON'T HAVE SPACE FOR THIS");
+	                	}
 	                } else {
 	                    System.out.println("WE'VE SAVED THIS CHUNK BEFORE. JUST SENDING STORED MESSAGE.");
 	                }

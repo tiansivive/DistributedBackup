@@ -375,7 +375,6 @@ public class Server{
 	public void hasReachedMinimumReplicationDegree(String fileId) {
 	    if(backedUpFiles.containsKey(fileId)) {
 	        backedUpFiles.get(fileId).hasAtLeastOneReplica = true;
-	        System.out.println("THIS FILE "+fileId+" HAS REACHED MINIMUM REPLICATION DEGREE");
 	    }
 	}
 	

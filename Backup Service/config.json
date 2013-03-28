@@ -1,6 +1,6 @@
 {
-	"availableSpaceOnServer":100000,
-	"protocolVersion":"1.0"
+	"availableSpaceOnServer":100,
+	"protocolVersion":"1.0",
 	"filesToBackup": [ 
 		{
 			"path":"config.json",
