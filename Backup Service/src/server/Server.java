@@ -67,10 +67,19 @@ public class Server{
 	    }
 	    return instance;
 	}
+	
+	@SuppressWarnings("unchecked")
+	private void loadBackedUpFiles() {
+		try {
+            bufferedReader = new BufferedReader(new FileReader("backedUpFiles.json"));
+            backedUpFiles = gson.fromJson(bufferedReader, HashMap.class);
+        } catch (FileNotFoundException e) {
+        	// ignore, there weren't any backed up files
+        }
+	}
 
 	public void mainLoop() {
-		run_threads();
-		createNecessaryFiles();
+		
 		
 		gson = new Gson();
 
@@ -82,6 +91,10 @@ public class Server{
             System.out.println("Configuration file is missing. Shutting down the server.");
             System.exit(-1);
         }
+        
+        loadBackedUpFiles();
+        createNecessaryFiles();
+        run_threads();
 
         bufferedReader = new BufferedReader(new InputStreamReader(System.in));
         
@@ -375,7 +388,20 @@ public class Server{
 	public void hasReachedMinimumReplicationDegree(String fileId) {
 	    if(backedUpFiles.containsKey(fileId)) {
 	        backedUpFiles.get(fileId).hasAtLeastOneReplica = true;
+	        saveBackedUpFilesToJson();
 	    }
+	}
+	
+	private void saveBackedUpFilesToJson() {
+        String json = gson.toJson(backedUpFiles);
+
+        try {
+            FileWriter writer = new FileWriter("backedUpFiles.json");
+            writer.write(json);
+            writer.close();
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
 	}
 	
 	private void backupConfigFiles() {
@@ -639,7 +665,7 @@ public class Server{
 	
 	public void removeThisSpaceFromServer(int bytes) {
 		availableSpaceOnServer -= bytes;
-		System.out.println("REMOVED "+bytes+" BYTES FROM THE AVAILABLE SPACE!");
+		//System.out.println("REMOVED "+bytes+" BYTES FROM THE AVAILABLE SPACE!");
 	}
 
 	public void addRemovedMessageInfomation(String fileID, String chunkNum){
