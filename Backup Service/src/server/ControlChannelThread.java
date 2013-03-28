@@ -53,7 +53,7 @@ public class ControlChannelThread extends ChannelThread{
 	 * The number of replicated chunks of a given file from another machine's backup request that have been stored in other machines.
 	 * 
 	 */
-	private HashMap<String,Map<Integer,Integer> > replicationDegreeOfOthersChunks; //map<ChunkNo,numOfBackups>
+	private HashMap<String,Map<Integer,Integer>> replicationDegreeOfOthersChunks; //map<ChunkNo,numOfBackups>
 	private HashMap<String, Integer> desiredReplicationOfFiles;
 	private HashMap<InetAddress,Map<String,ArrayList<Integer>>> storedMessagesReceived;
 	private HashMap<String, Set<Integer> > doNotReplyMessages;

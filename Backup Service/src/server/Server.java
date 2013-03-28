@@ -267,6 +267,7 @@ public class Server{
 	}
 
 	
+	@SuppressWarnings("unchecked")
 	private void createNecessaryFiles() {
 		
 		HashMap<String, Integer> toInitializeDesiredReplication = new HashMap<String,Integer>();
@@ -275,8 +276,9 @@ public class Server{
 
 		try{
 			synchronized(getControl_thread().getReplicationDegreeOfOthersChunks()){
-				getControl_thread().setReplicationDegreeOfOthersChunks(
-						gson.fromJson(new BufferedReader(new FileReader("ReplicationDegreeOfOthersChunks")), HashMap.class));
+                bufferedReader = new BufferedReader(new FileReader("ReplicationDegreeOfOthersChunks"));
+                Type replicationDegrees = new TypeToken<HashMap<String,Map<Integer,Integer>>>(){}.getType();
+				getControl_thread().setReplicationDegreeOfOthersChunks((HashMap<String, Map<Integer, Integer>>) gson.fromJson(bufferedReader, replicationDegrees));
 				System.out.println("Loaded ReplicationDegreeOfOthersChunks into memory");
 			}
 		} catch(FileNotFoundException e){
