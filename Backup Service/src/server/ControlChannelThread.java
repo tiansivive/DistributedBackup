@@ -391,13 +391,14 @@ public class ControlChannelThread extends ChannelThread{
 			if(ourRequestedBackups.containsKey(fileID)){
 				if(ourRequestedBackups.get(fileID).containsKey(chunkNum)){
 					
-					int debugPurpose = ourRequestedBackups.get(fileID).get(chunkNum).currentReplication;
-					int currentReplication = replicationDegreeOfOthersChunks.get(fileID).get(chunkNum);
-					ourRequestedBackups.get(fileID).get(chunkNum).currentReplication = currentReplication;
+					int currentReplication = ourRequestedBackups.get(fileID).get(chunkNum).currentReplication;
+					int updatedReplication = replicationDegreeOfOthersChunks.get(fileID).get(chunkNum);
+					ourRequestedBackups.get(fileID).get(chunkNum).currentReplication = updatedReplication;
 					
 					System.out.println("\n------------------------------------------------\n"
 											+ "UPDATING OUR BACKUP REQUEST CURRENT REPLICATION FROM "
-											+ debugPurpose + " TO " + currentReplication);
+											+ currentReplication + " TO " + updatedReplication
+											+ "\n------------------------------------------------\n");
 					
 					
 				}else{
