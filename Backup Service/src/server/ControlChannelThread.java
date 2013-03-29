@@ -378,22 +378,22 @@ public class ControlChannelThread extends ChannelThread{
 		int delay = Server.rand.nextInt(Values.backup_thread_response_delay)+100; // between 100 and 500 ms
 		Thread.sleep(delay);
 		System.out.println(Thread.currentThread().getName() + " PROCESSING REMOVED MESSAGE AFTER WAITING " 
-									+ delay + " MILISECONDS");
-		
-		if(replicationDegreeOfOthersChunks.containsKey(fileID)){
-			if(replicationDegreeOfOthersChunks.get(fileID).containsKey(chunkNum)){
-				synchronized(replicationDegreeOfOthersChunks){
+															+ delay + " MILISECONDS");
+		synchronized(replicationDegreeOfOthersChunks){
+			if(replicationDegreeOfOthersChunks.containsKey(fileID)){
+				if(replicationDegreeOfOthersChunks.get(fileID).containsKey(chunkNum)){
+
 					int currentReplication = replicationDegreeOfOthersChunks.get(fileID).get(chunkNum);
 					currentReplication--;
 					replicationDegreeOfOthersChunks.get(fileID).put(chunkNum, currentReplication);				
 					System.out.println(Thread.currentThread().getName() 
-											+ "\n-------------------------------------------------\n"
-											+ "FILE: " + fileID + "\n"
-											+ "CHUNK: " + chunkNum + "\n"
-											+ "DECREMENTED REPLICATION FROM " + (currentReplication-1) 
-											+ " TO " + currentReplication
-											+ "\n-------------------------------------------------\n");
-					
+							+ "\n-------------------------------------------------\n"
+							+ "FILE: " + fileID + "\n"
+							+ "CHUNK: " + chunkNum + "\n"
+							+ "DECREMENTED REPLICATION FROM " + (currentReplication+1) 
+							+ " TO " + currentReplication
+							+ "\n-------------------------------------------------\n");
+
 					synchronized (storedMessagesInformation_Cleaner) {
 						//Activate cleaner to update information. In case replication drops below desired the machine will
 						//receive STORED messages, keeping the cleaner dormant until things quiet down 
@@ -402,12 +402,16 @@ public class ControlChannelThread extends ChannelThread{
 					if(!hasChunkGotDesiredNumberOfReplicas(fileID, chunkNum)){
 						getServer().buildPacketFrom_REMOVED_Message(message, this.desiredReplicationOfFiles.get(fileID));
 					}
-				}
+				
 			}else{
 				System.out.println(Thread.currentThread().getName() + " CHUNK NOT RECOGNIZED");
 			}
+		}else{
+			System.out.println("FILE NOT RECOGNIZED");
+		}
 		}
 	}
+
 
 	public void updateRequestedBackups(Header info){
 
