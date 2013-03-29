@@ -732,6 +732,7 @@ public class Server{
 				packetsQueue.put(message.getFileID()+":"+message.getChunkNumber(), packet);
 				getControl_thread().updateRequestedBackups(new Header(head));
 				BackupChannelThread.getMulticast_backup_socket().send(packet);	
+				System.out.println("\n----------------SENT PUTCHUNK MESSAGE BECAUSE A REMOVED MESSAGE WAS RECEIVED----------------\n");
 				try {
 					Thread.sleep(Values.default_supervisor_delay);
 					getControl_thread().notifyDaemonSupervisor();
