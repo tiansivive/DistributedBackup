@@ -117,7 +117,7 @@ public class Server{
         try {
             bufferedReader = new BufferedReader(new FileReader("config.json"));
             config = gson.fromJson(bufferedReader, Config.class);
-
+            
         } catch (FileNotFoundException e) {
             System.out.println("Configuration file is missing. Shutting down the server.");
             System.exit(-1);
@@ -892,8 +892,8 @@ public class Server{
     }
 
     private class Config {
-        public int initialAvailableSpaceOnServer; // KB
-        public int currentAvailableSpaceOnServer;
+        public long initialAvailableSpaceOnServer; // BYTES
+        public long currentAvailableSpaceOnServer; // BYTES
         public String protocolVersion;
         public ArrayList<FileToBackup> filesToBackup;
     }

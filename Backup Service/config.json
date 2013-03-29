@@ -1,5 +1,6 @@
 {
-	"availableSpaceOnServer":1000,
+	"initialAvailableSpaceOnServer":209715200,
+	"currentAvailableSpaceOnServer":209715200,
 	"protocolVersion":"1.0",
 	"filesToBackup": [ 
 		{
