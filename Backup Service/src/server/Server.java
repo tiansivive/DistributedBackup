@@ -95,9 +95,9 @@ public class Server{
         exec.scheduleAtFixedRate(new Runnable() {
         	@Override
         	public void run() {
-        		System.out.println("SERVER - SAVING CONFIG AND BACKEDUP FILES");
+        		//System.out.println("SERVER - SAVING CONFIG AND BACKEDUP FILES");
         		saveConfigToJson();
-        		//saveBackedUpFilesToJson();
+        		saveBackedUpFilesToJson();
         	}
         }, 0, 10, TimeUnit.SECONDS);
 	}
