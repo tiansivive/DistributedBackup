@@ -391,8 +391,14 @@ public class ControlChannelThread extends ChannelThread{
 			if(ourRequestedBackups.containsKey(fileID)){
 				if(ourRequestedBackups.get(fileID).containsKey(chunkNum)){
 					
+					int debugPurpose = ourRequestedBackups.get(fileID).get(chunkNum).currentReplication;
 					int currentReplication = replicationDegreeOfOthersChunks.get(fileID).get(chunkNum);
 					ourRequestedBackups.get(fileID).get(chunkNum).currentReplication = currentReplication;
+					
+					System.out.println("\n------------------------------------------------\n"
+											+ "UPDATING OUR BACKUP REQUEST CURRENT REPLICATION FROM "
+											+ debugPurpose + " TO " + currentReplication);
+					
 					
 				}else{
 					System.out.println("CATASTROPHIC FAILURE");
