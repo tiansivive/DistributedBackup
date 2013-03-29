@@ -22,14 +22,11 @@ import java.nio.file.WatchEvent;
 import java.nio.file.WatchKey;
 import java.nio.file.WatchService;
 import java.nio.file.attribute.BasicFileAttributes;
-import java.security.KeyStore.Entry;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Iterator;
 import java.util.Map;
-
-import javax.sql.rowset.spi.SyncResolver;
 
 import protocols.ProtocolMessage;
 import constantValues.Values;
@@ -236,7 +233,10 @@ public class BackupChannelThread extends ChannelThread {
 			byte[] buf = ProtocolMessage.toBytes(head, null);
 			DatagramPacket packet = new DatagramPacket(buf, buf.length, Values.multicast_control_group_address, Values.multicast_control_group_port);
 			ControlChannelThread.getMulticast_control_socket().send(packet);
-			System.out.println(Thread.currentThread().getName() + " sent STORED message");
+			System.out.println("\n--------------------------------------------\n" +
+									Thread.currentThread().getName() + " sent STORED message"+
+									"\n--------------------------------------------\n");
+			
 		} catch (IOException e) {
 			e.printStackTrace();
 		}

@@ -266,7 +266,7 @@ public class ControlChannelThread extends ChannelThread{
 				packet = new DatagramPacket(buf, buf.length, Values.multicast_control_group_address, Values.multicast_control_group_port);
 				getMulticast_control_socket().send(packet);
 
-				System.out.println("SENT A DO NOT REPLY MESSAGE TO OTHERS - I AM THE ONE!");
+				System.out.println("SENT A DO NOT REPLY MESSAGE TO OTHERS - I AM THE CHOSEN ONE!");
 
 				// SEND THE CHUNK TO THE REQUESTER
 				head = new String(Values.send_chunk_data_message_identifier + " "
@@ -354,6 +354,15 @@ public class ControlChannelThread extends ChannelThread{
 			}
 			if(file.list().length == 0) {
 				file.delete();
+			}	
+			synchronized(replicationDegreeOfOthersChunks){
+				replicationDegreeOfOthersChunks.remove(message.getFileID());
+			}
+			synchronized(desiredReplicationOfFiles){
+				desiredReplicationOfFiles.remove(message.getFileID());
+			}
+			synchronized(storedMessagesInformation_Cleaner){
+				storedMessagesInformation_Cleaner.notifyAll(); //update information on file after deleting
 			}
 		} else {
 			System.out.println("RECEIVED DELETE MSG FOR FILE "+message.getFileID()+" THAT IS NOT BACKED UP IN THIS PEER");
@@ -376,8 +385,13 @@ public class ControlChannelThread extends ChannelThread{
 					int currentReplication = replicationDegreeOfOthersChunks.get(fileID).get(chunkNum);
 					currentReplication--;
 					replicationDegreeOfOthersChunks.get(fileID).put(chunkNum, currentReplication);
+					synchronized (storedMessagesInformation_Cleaner) {
+						//Activate cleaner to update information. In case replication drops below desired the machine will
+						//receive STORED messages, keeping the cleaner dormant until things quiet down 
+						storedMessagesInformation_Cleaner.notifyAll();
+					}
 					if(!hasChunkGotDesiredNumberOfReplicas(fileID, chunkNum)){
-						getServer().buildPacketFrom_REMOVED_Message(message, this.desiredReplicationOfFiles.get(fileID));//TODO get desired replication
+						getServer().buildPacketFrom_REMOVED_Message(message, this.desiredReplicationOfFiles.get(fileID));
 					}
 				}
 			}else{

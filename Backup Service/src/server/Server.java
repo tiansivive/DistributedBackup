@@ -301,6 +301,8 @@ public class Server{
 						
 						System.out.println("FINISHED FILE ITERATION CICLE");
 					}
+					
+					
 					System.out.println("GOING TO REMOVE " + amountOfSpaceReclaimed + " BYTES");
 					
 					try {
@@ -457,7 +459,14 @@ public class Server{
 
 	                        byte[] buf = ProtocolMessage.toBytes(head, null);
 	                        DatagramPacket packet = new DatagramPacket(buf, buf.length, Values.multicast_control_group_address, Values.multicast_control_group_port);
-
+	                        
+	                        synchronized(getBackup_thread().getBackedFiles()){
+	                        	getBackup_thread().getBackedFiles().remove(fileIdentifier);
+	                        }
+	                        synchronized (backedUpFiles) {
+	                        	backedUpFiles.remove(file.getName());
+							}
+	                        
 	                        for(int i = 0; i < Values.number_of_attempts_to_delete_files; i++) {
 	                            try {
 	                                Thread.sleep(i*50);
