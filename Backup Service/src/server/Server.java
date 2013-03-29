@@ -731,9 +731,13 @@ public class Server{
 				DatagramPacket packet = new DatagramPacket(buf, buf.length, Values.multicast_backup_group_address, Values.multicast_backup_group_port);
 				packetsQueue.put(message.getFileID()+":"+message.getChunkNumber(), packet);
 				getControl_thread().updateRequestedBackups(new Header(head));
-				BackupChannelThread.getMulticast_backup_socket().send(packet);
-				getControl_thread().notifyDaemonSupervisor();
-
+				BackupChannelThread.getMulticast_backup_socket().send(packet);	
+				try {
+					Thread.sleep(Values.default_supervisor_delay);
+					getControl_thread().notifyDaemonSupervisor();
+				} catch (InterruptedException e) {				
+					e.printStackTrace();
+				}
 			}else{
 				System.out.println("FILE NOT FOUND");
 			}
