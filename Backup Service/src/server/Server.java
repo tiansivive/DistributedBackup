@@ -843,6 +843,10 @@ public class Server{
 		}
 	}
 	
+	public String getProtocolVersion() {
+		return config.protocolVersion;
+	}
+	
 	public ControlChannelThread getControl_thread() {
 		return control_thread;
 	}

@@ -7,6 +7,8 @@ import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
 import java.io.FileReader;
 import java.io.IOException;
+import java.io.ObjectInputStream;
+import java.io.ObjectOutputStream;
 import java.lang.reflect.Type;
 import java.net.DatagramPacket;
 import java.net.InetAddress;
@@ -128,11 +130,12 @@ public class ControlChannelThread extends ChannelThread{
 		int endOfHeaderIndex;
 		if((endOfHeaderIndex = msg.indexOf("\r\n\r\n")) != -1) { // find the end of the header
 			String requestHeader = msg.substring(0, endOfHeaderIndex);
-			String headerPattern = "^[A-Z]{6,8} (1.0)? [a-z0-9]{64}( [0-9]{1,6})?$";
+			String headerPattern1 = "^[A-Z]{6,10} (1.0)? [a-z0-9]{64}( [0-9]{1,6})?$";
+//			String headerPattern2 = "^GETCHUNK 1.1 [a-z0-9]{64} [0-9]{1,6}$";
 
-			if(requestHeader.matches(headerPattern)) {
+			if(requestHeader.matches(headerPattern1)) {
 				String[] fields = requestHeader.split(" ");
-				Header message = new Header(requestHeader); // NOT WORKING CORRECTLY
+				Header message = new Header(requestHeader); 
 
 				try {
 					switch(fields[0]){
@@ -181,16 +184,16 @@ public class ControlChannelThread extends ChannelThread{
 	private  void process_DoNotReplyMessage(Header message){
 
 		HashSet<Integer> tmp = new HashSet<Integer>();
+		String fileId = message.getFileID();
 
-		if(!this.doNotReplyMessages.containsKey(message.getFileID())){
-			synchronized(this){
-				this.doNotReplyMessages.put(message.getFileID(), tmp);
+		synchronized (doNotReplyMessages) {
+			if(!doNotReplyMessages.containsKey(fileId)) {
+				tmp.add(message.getChunkNumber());
+				doNotReplyMessages.put(fileId, tmp);
+			} else {
+				this.doNotReplyMessages.get(fileId).add(message.getChunkNumber());
 			}
 		}
-		synchronized (this){
-			this.doNotReplyMessages.get(message.getFileID()).add(message.getChunkNumber());
-		}
-
 	}
 
 	private void process_GetChunkMessage(Header message, InetAddress srcIP) throws IOException, FileNotFoundException, InterruptedException{
@@ -214,7 +217,7 @@ public class ControlChannelThread extends ChannelThread{
 			byte[] buf = null;
 			DatagramPacket packet;
 
-			if(Values.protocol_version == "1.0"){
+			if(getServer().getProtocolVersion().compareTo("1.0") == 0){
 				head = new String(Values.send_chunk_data_message_identifier + " "
 						+ Values.protocol_version + " "
 						+  message.getFileID() + " "
@@ -236,21 +239,36 @@ public class ControlChannelThread extends ChannelThread{
 					getServer().getRestore_thread().clearThisChunkMsg(message.getFileID(), message.getChunkNumber());
 				}
 
-			}else{
+			} else {
+				// waiting between 0 and 400 miliseconds before decision
+				int delay = Server.rand.nextInt(Values.restore_channel_send_chunk_delay+1);
+				Thread.sleep(delay);
+				
+				synchronized (doNotReplyMessages) {
+					if(doNotReplyMessages.containsKey(message.getFileID())) {
+						Set<Integer> tmp = doNotReplyMessages.get(message.getFileID());
+						if(tmp.contains(message.getChunkNumber())) {
+							tmp.remove(message.getChunkNumber());
+							System.out.println("SOMEONE ELSE IS SENDING THE CHUNK!");
+							input.close();
+							return;
+						}
+					}
+				}
 
-				// TODO HAS TO CHECK IF SOMEONE HAS ALREADY SENT A DO NOT REPLY MSG!
-
+				// SEND A DO NOT REPLY MESSAGE TO OTHERS
 				head = new String(Values.do_not_reply_to_getchunk_message + " "
 						+ Values.protocol_version + " "
 						+  message.getFileID() + " "
 						+ message.getChunkNumber());
 
 				buf = ProtocolMessage.toBytes(head, null);
-				packet = new DatagramPacket(buf, buf.length, Values.multicast_restore_group_address, Values.multicast_restore_group_port);
-				RestoreChannelThread.getMulticast_restore_socket().send(packet);
+				packet = new DatagramPacket(buf, buf.length, Values.multicast_control_group_address, Values.multicast_control_group_port);
+				getMulticast_control_socket().send(packet);
 
-				Thread.sleep(250);
+				System.out.println("SENT A DO NOT REPLY MESSAGE TO OTHERS - I AM THE ONE!");
 
+				// SEND THE CHUNK TO THE REQUESTER
 				head = new String(Values.send_chunk_data_message_identifier + " "
 						+ Values.protocol_version + " "
 						+  message.getFileID() + " "
@@ -656,11 +674,19 @@ public class ControlChannelThread extends ChannelThread{
 									
 									//UPDATE ReplicationDegreeOfOthersChunks FILE
 									synchronized(replicationDegreeOfOthersChunks){
-										
-										bufferedReader = new BufferedReader(new FileReader("ReplicationDegreeOfOthersChunks"));
-										Type hashmapType = new TypeToken<HashMap<String,Map<Integer,Integer>>>(){}.getType();
-										HashMap<String, Map<Integer,Integer>> toSaveReplicationDegree = gson.fromJson(bufferedReader, hashmapType);
-										
+
+										HashMap<String, Map<Integer,Integer>> toSaveReplicationDegree = null;
+										try
+										{
+											FileInputStream fileIn = new FileInputStream("ReplicationDegreeOfOthersChunks.FAP");
+											ObjectInputStream in = new ObjectInputStream(fileIn);
+											toSaveReplicationDegree = (HashMap<String,Map<Integer,Integer>>) in.readObject();
+											in.close();
+											fileIn.close();
+										} catch (IOException | ClassNotFoundException e) {
+											e.printStackTrace();
+										} 
+
 										Iterator<String> filesIterator = replicationDegreeOfOthersChunks.keySet().iterator();
 										while(filesIterator.hasNext()){ //Update information on file with information on replicationDegreeOfChunks
 
@@ -679,23 +705,34 @@ public class ControlChannelThread extends ChannelThread{
 											}
 										}
 
-										File file = new File("ReplicationDegreeOfOthersChunks");
-										FileOutputStream fos = new FileOutputStream(file);
-										String json = gson.toJson(toSaveReplicationDegree);
-										fos.write(json.getBytes());
-										fos.flush();
-										fos.close();
+										try
+										{
+											FileOutputStream fileOut = new FileOutputStream("ReplicationDegreeOfOthersChunks.FAP");
+											ObjectOutputStream out = new ObjectOutputStream(fileOut);
+											out.writeObject(toSaveReplicationDegree);
+											out.close();
+											fileOut.close();
+										} catch(IOException i) {
+											i.printStackTrace();
+										}
 										System.out.println(Thread.currentThread().getName() + " UPDATED ReplicationDegreeOfOthersChunks FILE");
 										//replicationDegreeOfOthersChunks.clear();
-										
 									}
 									
 									//UPDATE desiredReplicationOfFiles FILE
+									HashMap<String,Integer> toSaveDesiredReplication = null;
 									synchronized(desiredReplicationOfFiles){
 										
-										bufferedReader = new BufferedReader(new FileReader("DesiredReplicationOfFiles"));
-										Type hashmapType = new TypeToken<HashMap<String,Integer>>(){}.getType();
-										HashMap<String,Integer> toSaveDesiredReplication = gson.fromJson(bufferedReader, hashmapType);
+										try
+										{
+											FileInputStream fileIn = new FileInputStream("DesiredReplicationOfFiles.FAP");
+											ObjectInputStream in = new ObjectInputStream(fileIn);
+											toSaveDesiredReplication = (HashMap<String,Integer>) in.readObject();
+											in.close();
+											fileIn.close();
+										} catch (IOException | ClassNotFoundException e) {
+											e.printStackTrace();
+										} 
 										
 										Iterator<String> filesIterator = desiredReplicationOfFiles.keySet().iterator();
 										while(filesIterator.hasNext()){ 
@@ -704,16 +741,21 @@ public class ControlChannelThread extends ChannelThread{
 											toSaveDesiredReplication.put(fileID, desiredReplicationOfFiles.get(fileID));
 
 										}
+										
+										try
+										{
+											FileOutputStream fileOut = new FileOutputStream("DesiredReplicationOfFiles.FAP");
+											ObjectOutputStream out = new ObjectOutputStream(fileOut);
+											out.writeObject(toSaveDesiredReplication);
+											out.close();
+											fileOut.close();
+										} catch(IOException i) {
+											i.printStackTrace();
+										}
 
-										File file = new File("DesiredReplicationOfFiles");
-										FileOutputStream fos = new FileOutputStream(file);
-										String json = gson.toJson(toSaveDesiredReplication);
-										fos.write(json.getBytes());
-										fos.flush();
-										fos.close();
 										System.out.println(Thread.currentThread().getName() + " UPDATED DesiredReplicationOfFiles FILE");
 										//replicationDegreeOfOthersChunks.clear();
-										this.wait();
+										wait();
 									}
 
 									synchronized (storedMessagesReceived) {
@@ -724,7 +766,7 @@ public class ControlChannelThread extends ChannelThread{
 						}
 						this.setReadyToWork(true);              
 					}
-				} catch (InterruptedException | IOException e) {
+				} catch (InterruptedException e) {
 					e.printStackTrace();
 				}
 			}
