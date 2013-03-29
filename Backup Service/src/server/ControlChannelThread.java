@@ -383,7 +383,28 @@ public class ControlChannelThread extends ChannelThread{
 			}
 		}
 	}
-
+	
+	public void updateOutRequestedBackupsCurrentReplication(String fileID, int chunkNum){
+		
+		synchronized (ourRequestedBackups) {
+		
+			if(ourRequestedBackups.containsKey(fileID)){
+				if(ourRequestedBackups.get(fileID).containsKey(chunkNum)){
+					
+					int currentReplication = replicationDegreeOfOthersChunks.get(fileID).get(chunkNum);
+					ourRequestedBackups.get(fileID).get(chunkNum).currentReplication = currentReplication;
+					
+				}else{
+					System.out.println("CATASTROPHIC FAILURE");
+					System.exit(-1);
+				}
+			}else{
+				System.out.println("CATASTROPHIC FAILURE");
+				System.exit(-1);
+			}
+		}
+		
+	}
 
 	public void setFilesDesiredReplication(String fileID, int desiredReplication){	
 		synchronized (desiredReplicationOfFiles) {
