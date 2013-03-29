@@ -9,6 +9,8 @@ import java.io.FileReader;
 import java.io.FileWriter;
 import java.io.IOException;
 import java.io.InputStreamReader;
+import java.io.ObjectInputStream;
+import java.io.ObjectOutputStream;
 import java.lang.reflect.Type;
 import java.net.DatagramPacket;
 import java.net.InetAddress;
@@ -353,51 +355,64 @@ public class Server{
 	
 	@SuppressWarnings("unchecked")
 	private void createNecessaryFiles() {
-		
+
 		HashMap<String, Integer> toInitializeDesiredReplication = new HashMap<String,Integer>();
 		HashMap<String, Map<Integer,Integer>> toInitializeReplicationDegree = new HashMap<String, Map<Integer,Integer>>();
-		gson = new Gson();
 
-		try{
-			synchronized(getControl_thread().getReplicationDegreeOfOthersChunks()){
-                bufferedReader = new BufferedReader(new FileReader("ReplicationDegreeOfOthersChunks"));
-                Type replicationDegrees = new TypeToken<HashMap<String,Map<Integer,Integer>>>(){}.getType();
-				getControl_thread().setReplicationDegreeOfOthersChunks((HashMap<String, Map<Integer, Integer>>) gson.fromJson(bufferedReader, replicationDegrees));
+		synchronized(getControl_thread().getReplicationDegreeOfOthersChunks()){
+			try
+			{
+				FileInputStream fileIn = new FileInputStream("ReplicationDegreeOfOthersChunks.FAP");
+				ObjectInputStream in = new ObjectInputStream(fileIn);
+				toInitializeReplicationDegree = (HashMap<String,Map<Integer,Integer>>) in.readObject();
+				getControl_thread().setReplicationDegreeOfOthersChunks(toInitializeReplicationDegree);
+				in.close();
+				fileIn.close();
 				System.out.println("Loaded ReplicationDegreeOfOthersChunks into memory");
-			}
-		} catch(FileNotFoundException e){
-			try {
-				File replicationInfo = new File("ReplicationDegreeOfOthersChunks");
-				FileOutputStream fos = new FileOutputStream(replicationInfo);
-				fos.write(gson.toJson(toInitializeReplicationDegree).getBytes());
-				fos.flush();
-				fos.close();
-			} catch (IOException e1) {
-				e1.printStackTrace();
+			} catch (ClassNotFoundException e) {
+				e.printStackTrace();
+			} catch(FileNotFoundException e){
+				try
+				{
+					FileOutputStream fileOut = new FileOutputStream("ReplicationDegreeOfOthersChunks.FAP");
+					ObjectOutputStream out = new ObjectOutputStream(fileOut);
+					out.writeObject(toInitializeDesiredReplication);
+					out.close();
+					fileOut.close();
+				} catch(IOException i) {
+					i.printStackTrace();
+				}
+			} catch (IOException e) {
+				e.printStackTrace();
 			}
 		}
 		
-		
-		try{
-			synchronized(getControl_thread().getReplicationDegreeOfOthersChunks()){
-				getControl_thread().setDesiredReplicationOfFiles(
-						gson.fromJson(new BufferedReader(new FileReader("DesiredReplicationOfFiles")), HashMap.class));
+		synchronized (getControl_thread().getDesiredReplicationOfFiles()) {
+			try
+			{
+				FileInputStream fileIn = new FileInputStream("DesiredReplicationOfFiles.FAP");
+				ObjectInputStream in = new ObjectInputStream(fileIn);
+				toInitializeDesiredReplication = (HashMap<String,Integer>) in.readObject();
+				getControl_thread().setDesiredReplicationOfFiles(toInitializeDesiredReplication);
+				in.close();
+				fileIn.close();
 				System.out.println("Loaded DesiredReplicationOfFiles into memory");
+			} catch (ClassNotFoundException e) {
+				e.printStackTrace();
+			} catch(FileNotFoundException e){
+				try
+				{
+					FileOutputStream fileOut = new FileOutputStream("DesiredReplicationOfFiles.FAP");
+					ObjectOutputStream out = new ObjectOutputStream(fileOut);
+					out.writeObject(toInitializeDesiredReplication);
+					out.close();
+					fileOut.close();
+				} catch(IOException i) {
+					i.printStackTrace();
+				}
+			} catch (IOException e) {
+				e.printStackTrace();
 			}
-		} catch(FileNotFoundException e){
-
-			try {
-				File replicationInfo = new File("DesiredReplicationOfFiles");
-				FileOutputStream fos = new FileOutputStream(replicationInfo);
-				fos.write(gson.toJson(toInitializeDesiredReplication).getBytes());
-				fos.flush();
-				fos.close();
-			} catch (IOException e1) {
-				// TODO Auto-generated catch block
-				e1.printStackTrace();
-			}
-
-
 		}
 	}
 
