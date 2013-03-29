@@ -619,7 +619,8 @@ public class Server{
 	                + "\n");
 	        
 	        backedUpFiles.put(fileIdentifier,new BackedUpFile(fileIdentifier,file.getAbsolutePath(), false, numberChunks));
-
+	        getControl_thread().setFilesDesiredReplication(fileIdentifier, replicationDegree);
+	        
 	        while ((chunkSize = fileInputStream.read(dataBytes)) != -1){
 
 	            if(chunkSize < 64000) {

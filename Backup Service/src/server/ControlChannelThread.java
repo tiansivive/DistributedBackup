@@ -384,34 +384,6 @@ public class ControlChannelThread extends ChannelThread{
 		}
 	}
 
-	/*
-	public void setChunksDesiredReplication(String fileID, int chunkNum, int desiredReplication){
-
-		synchronized (replicationDegreeOfOthersChunks) {
-
-			if(replicationDegreeOfOthersChunks.containsKey(fileID)){
-				if(replicationDegreeOfOthersChunks.get(fileID).containsKey(chunkNum)){					
-					replicationDegreeOfOthersChunks.get(fileID).get(chunkNum).desiredReplication = desiredReplication;
-					System.out.println(Thread.currentThread().getName() + ":\n" +
-							"FILE AND CHUNK BOTH EXIST\n" +
-							"HAS SET DESIRED REPLICATION OF CHUNK " + chunkNum + 
-							" TO " + desiredReplication +
-							"\n------------------------------------------------------------\n");			
-				}else{
-					replicationDegreeOfOthersChunks.get(fileID).put(chunkNum, new ReplicationInfo(desiredReplication,0));
-					System.out.println(Thread.currentThread().getName() + ":\n" 
-								+ "FILE EXISTS BUT CHUNK DOES NOT\nCREATED REPLICATION INFO OF CHUNK NUMBER " + chunkNum
-								+ "\n------------------------------------------------------------\n");
-				}
-			}else{
-				HashMap<Integer, ReplicationInfo> tmp = new HashMap<Integer,ReplicationInfo>();
-				tmp.put(chunkNum, new ReplicationInfo(desiredReplication,0));
-				replicationDegreeOfOthersChunks.put(fileID, tmp);
-				System.out.println(Thread.currentThread().getName() + ":\n" + "CREATED REPLICATION INFO OF FILE " + fileID
-						+ "\n------------------------------------------------------------\n");
-			}
-		}
-	}*/
 
 	public void setFilesDesiredReplication(String fileID, int desiredReplication){	
 		synchronized (desiredReplicationOfFiles) {
