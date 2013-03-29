@@ -217,7 +217,9 @@ public class ControlChannelThread extends ChannelThread{
 			byte[] buf = null;
 			DatagramPacket packet;
 
-			if(getServer().getProtocolVersion().compareTo("1.0") == 0){
+			if( message.getVersion().compareTo("1.0") == 0){
+				
+				
 				head = new String(Values.send_chunk_data_message_identifier + " "
 						+ Values.protocol_version + " "
 						+  message.getFileID() + " "

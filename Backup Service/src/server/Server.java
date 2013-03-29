@@ -106,6 +106,8 @@ public class Server{
         		saveBackedUpFilesToJson();
         	}
         }, 0, 10, TimeUnit.SECONDS);
+        
+        Values.setProtocol_version(config.protocolVersion);
 	}
 	
 	public static Server getInstance() {
