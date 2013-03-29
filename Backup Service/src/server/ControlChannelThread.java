@@ -463,6 +463,7 @@ public class ControlChannelThread extends ChannelThread{
 			ourRequestedBackups.get(fileId).get(chunkNum).currentReplication++;
 			System.out.println("INCREMENTING REPLICATION OF OUR FILE "+fileId+" CHUNK "+chunkNum);
 		}
+		incrementReplicationOfOtherChunk(fileId, chunkNum);//WE ALSO NEED THIS FOR REMOVED PROTOCOL
 	}
 
 	public void notifyDaemonSupervisor() {	
