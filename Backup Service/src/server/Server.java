@@ -327,17 +327,26 @@ public class Server{
 									+ "chunk_" + chunkNum);		
 							
 							if(chunk.delete()) {
-								
+								synchronized (getBackup_thread().getBackedFiles()) {
+									ArrayList<Integer> tmpChunks = getBackup_thread().getBackedFiles().get(fileID);
+									if(tmpChunks != null) {
+										tmpChunks.remove(chunkNum);
+									}
+								}
 								getBackup_thread().send_REMOVED_messageForChunk(fileID, chunkNum);
 							}
 							chunksIterator.remove();
 						}
 						File fileDir = new File(Values.directory_to_backup_files + fileSeparator + fileID);
-						fileDir.delete();
+						if(fileDir.delete()) {
+							synchronized (getBackup_thread().getBackedFiles()) {
+								getBackup_thread().getBackedFiles().remove(fileID);
+							}
+						}
 					}
 					System.out.println("DONE RECLAIMING SPACE");
 					config.currentAvailableSpaceOnServer += amountOfSpaceReclaimed;
-					isReclaimingSpace = false;
+					isReclaimingSpace = false; // TODO NEEDS IMPROVEMENTS
 				}
 			}
 		}
