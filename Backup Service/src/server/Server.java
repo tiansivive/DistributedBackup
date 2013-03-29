@@ -342,6 +342,7 @@ public class Server{
 						fileDir.delete();
 					}
 					System.out.println("DONE RECLAIMING SPACE");
+					config.currentAvailableSpaceOnServer += amountOfSpaceReclaimed;
 					isReclaimingSpace = false;
 				}
 			}
