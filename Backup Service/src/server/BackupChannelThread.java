@@ -269,10 +269,11 @@ public class BackupChannelThread extends ChannelThread {
 			Thread.sleep(delay);
 			ControlChannelThread.getMulticast_control_socket().send(packet);
 			
-			System.out.println("\n" + Thread.currentThread().getName() + " SENT REMOVED MESSAGE:"
+			System.out.println("\n--------------------------------------------------------------\n" 
+									+ Thread.currentThread().getName() + " SENT REMOVED MESSAGE:"
 									+ "\nFILE: " + fileId 
 									+ "\nCHUNK: " + chunkNum
-									+ "--------------------------------------------------------------");
+									+ "\n--------------------------------------------------------------\n");
 			
 		} catch (IOException | InterruptedException e) {
 			e.printStackTrace();

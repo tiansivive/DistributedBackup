@@ -226,7 +226,6 @@ public class Server{
 					while(true){
 						
 						fileIterator = tmp.keySet().iterator();
-						System.out.println("WHILE TRUE");
 						while(fileIterator.hasNext()){
 
 							ArrayList<Integer> chunksSurplus = new ArrayList<Integer>();
@@ -238,7 +237,6 @@ public class Server{
 							while(chunksIterator.hasNext()){
 								
 								Integer chunkNum = chunksIterator.next();
-								System.out.println("CHUNKNUM = " + chunkNum);
 								boolean addItToTheList = false;
 								
 								if(onlySelectChunksWithMoreThanDesiredReplication) {
@@ -279,6 +277,8 @@ public class Server{
 								
 								if(temp != null){
 									for(int i = 0; i < chunksSurplus.size(); i++){
+										
+										System.out.println("ADDING TO TEMP INDEX " + i);
 										temp.add(chunksSurplus.get(i));
 									}
 									chunksToBeRemoved.put(fileID, temp);
@@ -323,6 +323,13 @@ public class Server{
 							int currentReplication = tmp.get(fileID).get(chunkNum);
 							currentReplication--;
 							tmp.get(fileID).put(chunkNum, currentReplication);
+							System.out.println("\n---------------------------------------------------\n"
+													+ "IN FILE " + fileID
+													+ "\nCHUNK NUMBER " + chunkNum
+													+ "\nREPLICATION SHOULD BE " + currentReplication
+													+ "\nBUT VALUE IS " 
+													+ getControl_thread().getReplicationDegreeOfOthersChunks().get(fileID).get(chunkNum)
+													+ "\n---------------------------------------------------\n");
 
 							File chunk = new File(Values.directory_to_backup_files + fileSeparator 
 									+ fileID + fileSeparator

@@ -390,7 +390,8 @@ public class ControlChannelThread extends ChannelThread{
 											+ "\n-------------------------------------------------\n"
 											+ "FILE: " + fileID + "\n"
 											+ "CHUNK: " + chunkNum + "\n"
-											+ "REPLICATION IS NOW " + currentReplication
+											+ "DECREMENTED REPLICATION FROM " + (currentReplication-1) 
+											+ " TO " + currentReplication
 											+ "\n-------------------------------------------------\n");
 					
 					synchronized (storedMessagesInformation_Cleaner) {
