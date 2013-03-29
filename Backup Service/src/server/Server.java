@@ -210,29 +210,45 @@ public class Server{
 								System.out.println("CHUNKNUM = " + chunkNum);
 								if(onlySelectChunksWithMoreThanDesiredReplication){
 									if(getControl_thread().hasChunkGotMoreThanDesiredNumberOfReplicas(fileID, chunkNum)){
-										chunksSurplus.add(chunkNum);
-
-										File chunk = new File(Values.directory_to_backup_files + fileSeparator 
-												+ fileID + fileSeparator
-												+ "chunk_" + chunkNum);
-										amountOfSpaceReclaimed += chunk.length(); // TODO it might be smaller
 										
-										System.out.println("ADDING CHUNK NUMBER " + chunkNum 
-												+ " FROM FILE " + fileID 
-												+ " TO REMOVE LIST");   
+										
+										if(getBackup_thread().getBackedFiles().containsKey(fileID)){
+											if(getBackup_thread().getBackedFiles().get(fileID).contains(chunkNum)){
+												
+												File chunk = new File(Values.directory_to_backup_files + fileSeparator 
+														+ fileID + fileSeparator
+														+ "chunk_" + chunkNum);
+												amountOfSpaceReclaimed += chunk.length();
+												
+												System.out.println("ADDING CHUNK NUMBER " + chunkNum 
+														+ " FROM FILE " + fileID 
+														+ " TO REMOVE LIST");  
+												chunksSurplus.add(chunkNum);
+
+											}
+										}
+
+
 									}
 								}else{
-									chunksSurplus.add(chunkNum);
-									File chunk = new File(Values.directory_to_backup_files + fileSeparator 
-											+ fileID + fileSeparator
-											+ "chunk_" + chunkNum);
-									amountOfSpaceReclaimed += chunk.length(); // TODO it might be smaller
 
-									System.out.println("ADDING CHUNK NUMBER " + chunkNum 
-											+ " FROM FILE " + fileID 
-											+ " TO REMOVE LIST");
+									if(getBackup_thread().getBackedFiles().containsKey(fileID)){
+										if(getBackup_thread().getBackedFiles().get(fileID).contains(chunkNum)){
+
+											File chunk = new File(Values.directory_to_backup_files + fileSeparator 
+													+ fileID + fileSeparator
+													+ "chunk_" + chunkNum);
+											amountOfSpaceReclaimed += chunk.length(); 
+
+											System.out.println("ADDING CHUNK NUMBER " + chunkNum 
+													+ " FROM FILE " + fileID 
+													+ " TO REMOVE LIST");
+
+											chunksSurplus.add(chunkNum);
+										}
+									}
 								}
-								
+
 								if(amountOfSpaceReclaimed >= spaceToReclaim){
 									break;
 								}

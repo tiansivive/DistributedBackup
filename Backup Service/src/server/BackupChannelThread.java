@@ -475,4 +475,12 @@ public class BackupChannelThread extends ChannelThread {
 	public static void setMulticast_backup_socket(MulticastSocket multicast_backup_socket) {
 		BackupChannelThread.multicast_backup_socket = multicast_backup_socket;
 	}
+
+	public HashMap<String, ArrayList<Integer>> getBackedFiles() {
+		return backedFiles;
+	}
+
+	public void setBackedFiles(HashMap<String, ArrayList<Integer>> backedFiles) {
+		this.backedFiles = backedFiles;
+	}
 }
