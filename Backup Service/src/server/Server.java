@@ -369,6 +369,7 @@ public class Server{
 
 		HashMap<String, Integer> toInitializeDesiredReplication = new HashMap<String,Integer>();
 		HashMap<String, Map<Integer,Integer>> toInitializeReplicationDegree = new HashMap<String, Map<Integer,Integer>>();
+		HashMap<InetAddress,Map<String,ArrayList<Integer>>> toInitializeStoredMessages =  new HashMap<InetAddress,Map<String,ArrayList<Integer>>>();
 
 		synchronized(getControl_thread().getReplicationDegreeOfOthersChunks()){
 			try
@@ -388,6 +389,34 @@ public class Server{
 					FileOutputStream fileOut = new FileOutputStream("ReplicationDegreeOfOthersChunks.FAP");
 					ObjectOutputStream out = new ObjectOutputStream(fileOut);
 					out.writeObject(toInitializeDesiredReplication);
+					out.close();
+					fileOut.close();
+				} catch(IOException i) {
+					i.printStackTrace();
+				}
+			} catch (IOException e) {
+				e.printStackTrace();
+			}
+		}
+		
+		synchronized(getControl_thread().getStoredMessagesReceived()){
+			try
+			{
+				FileInputStream fileIn = new FileInputStream("StoredMessagesReceived.FAP");
+				ObjectInputStream in = new ObjectInputStream(fileIn);
+				toInitializeStoredMessages = (HashMap<InetAddress,Map<String,ArrayList<Integer>>>) in.readObject();
+				getControl_thread().setStoredMessagesReceived(toInitializeStoredMessages);
+				in.close();
+				fileIn.close();
+				System.out.println("Loaded StoredMessagesReceived into memory");
+			} catch (ClassNotFoundException e) {
+				e.printStackTrace();
+			} catch(FileNotFoundException e){
+				try
+				{
+					FileOutputStream fileOut = new FileOutputStream("StoredMessagesReceived.FAP");
+					ObjectOutputStream out = new ObjectOutputStream(fileOut);
+					out.writeObject(toInitializeStoredMessages);
 					out.close();
 					fileOut.close();
 				} catch(IOException i) {

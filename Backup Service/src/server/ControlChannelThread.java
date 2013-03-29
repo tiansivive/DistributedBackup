@@ -704,6 +704,7 @@ public class ControlChannelThread extends ChannelThread{
 									//UPDATE ReplicationDegreeOfOthersChunks FILE
 									synchronized(replicationDegreeOfOthersChunks){
 
+										/*
 										HashMap<String, Map<Integer,Integer>> toSaveReplicationDegree = null;
 										try
 										{
@@ -715,7 +716,7 @@ public class ControlChannelThread extends ChannelThread{
 										} catch (IOException | ClassNotFoundException e) {
 											e.printStackTrace();
 										} 
-
+										
 										Iterator<String> filesIterator = replicationDegreeOfOthersChunks.keySet().iterator();
 										while(filesIterator.hasNext()){ //Update information on file with information on replicationDegreeOfChunks
 
@@ -733,12 +734,14 @@ public class ControlChannelThread extends ChannelThread{
 												toSaveReplicationDegree.put(fileID, replicationDegreeOfOthersChunks.get(fileID));
 											}
 										}
+										*/
 
 										try
 										{
 											FileOutputStream fileOut = new FileOutputStream("ReplicationDegreeOfOthersChunks.FAP");
 											ObjectOutputStream out = new ObjectOutputStream(fileOut);
-											out.writeObject(toSaveReplicationDegree);
+											//out.writeObject(toSaveReplicationDegree);
+											out.writeObject(replicationDegreeOfOthersChunks);
 											out.close();
 											fileOut.close();
 										} catch(IOException i) {
@@ -749,9 +752,9 @@ public class ControlChannelThread extends ChannelThread{
 									}
 									
 									//UPDATE desiredReplicationOfFiles FILE
-									HashMap<String,Integer> toSaveDesiredReplication = null;
 									synchronized(desiredReplicationOfFiles){
-										
+										/*
+										HashMap<String,Integer> toSaveDesiredReplication = null;
 										try
 										{
 											FileInputStream fileIn = new FileInputStream("DesiredReplicationOfFiles.FAP");
@@ -765,17 +768,17 @@ public class ControlChannelThread extends ChannelThread{
 										
 										Iterator<String> filesIterator = desiredReplicationOfFiles.keySet().iterator();
 										while(filesIterator.hasNext()){ 
-
 											String fileID = (String)filesIterator.next();
 											toSaveDesiredReplication.put(fileID, desiredReplicationOfFiles.get(fileID));
-
 										}
+										*/
 										
 										try
 										{
 											FileOutputStream fileOut = new FileOutputStream("DesiredReplicationOfFiles.FAP");
 											ObjectOutputStream out = new ObjectOutputStream(fileOut);
-											out.writeObject(toSaveDesiredReplication);
+											//out.writeObject(toSaveDesiredReplication);
+											out.writeObject(desiredReplicationOfFiles);
 											out.close();
 											fileOut.close();
 										} catch(IOException i) {
@@ -784,12 +787,24 @@ public class ControlChannelThread extends ChannelThread{
 
 										System.out.println(Thread.currentThread().getName() + " UPDATED DesiredReplicationOfFiles FILE");
 										//replicationDegreeOfOthersChunks.clear();
-										wait();
 									}
 
 									synchronized (storedMessagesReceived) {
-										//storedMessagesReceived.clear();
+										try
+										{
+											FileOutputStream fileOut = new FileOutputStream("StoredMessagesReceived.FAP");
+											ObjectOutputStream out = new ObjectOutputStream(fileOut);
+											//out.writeObject(toSaveDesiredReplication);
+											out.writeObject(storedMessagesReceived);
+											out.close();
+											fileOut.close();
+										} catch(IOException i) {
+											i.printStackTrace();
+										}
+
+										System.out.println(Thread.currentThread().getName() + " UPDATED StoredMessagesReceived FILE");
 									}
+									wait();
 								}
 							}
 						}
@@ -842,17 +857,24 @@ public class ControlChannelThread extends ChannelThread{
 		return replicationDegreeOfOthersChunks;
 	}
 
-	public void setReplicationDegreeOfOthersChunks(
-			HashMap<String, Map<Integer, Integer>> replicationDegreeOfOthersChunks) {
+	public void setReplicationDegreeOfOthersChunks(HashMap<String, Map<Integer, Integer>> replicationDegreeOfOthersChunks) {
 		this.replicationDegreeOfOthersChunks = replicationDegreeOfOthersChunks;
 	}
 
-	public synchronized HashMap<String, Integer> getDesiredReplicationOfFiles() {
+	public HashMap<String, Integer> getDesiredReplicationOfFiles() {
 		return desiredReplicationOfFiles;
 	}
 
-	public synchronized void setDesiredReplicationOfFiles(
+	public void setDesiredReplicationOfFiles(
 			HashMap<String, Integer> desiredReplicationOfFiles) {
 		this.desiredReplicationOfFiles = desiredReplicationOfFiles;
+	}
+	
+	public HashMap<InetAddress,Map<String,ArrayList<Integer>>> getStoredMessagesReceived() {
+		return storedMessagesReceived;
+	}
+	
+	public void setStoredMessagesReceived(HashMap<InetAddress,Map<String,ArrayList<Integer>>> storedMessagesReceived) {
+		this.storedMessagesReceived = storedMessagesReceived;
 	}
 }
