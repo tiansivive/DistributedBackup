@@ -250,11 +250,8 @@ public class Server{
 														+ " FROM FILE " + fileID 
 														+ " TO REMOVE LIST");  
 												chunksSurplus.add(chunkNum);
-
 											}
 										}
-
-
 									}
 								}else{
 
@@ -279,7 +276,6 @@ public class Server{
 									break;
 								}
 							}
-							
 
 							if(!chunksSurplus.isEmpty()){
 								
@@ -312,14 +308,11 @@ public class Server{
 					}
 					System.out.println("GOING TO REMOVE " + amountOfSpaceReclaimed + " BYTES");
 					
-					
 					try {
 						Thread.sleep(2000);
 					} catch (InterruptedException e) {
-						// TODO Auto-generated catch block
 						e.printStackTrace();
 					}
-					
 					
 					fileIterator = chunksToBeRemoved.keySet().iterator();
 					while(fileIterator.hasNext()){
@@ -352,7 +345,6 @@ public class Server{
 		}
 	}
 
-	
 	@SuppressWarnings("unchecked")
 	private void createNecessaryFiles() {
 
@@ -418,11 +410,24 @@ public class Server{
 
 	private void listBackedFiles() {
 	    Iterator<Entry<String,BackedUpFile>> it = backedUpFiles.entrySet().iterator();
-
-        while (it.hasNext()) {
-            Map.Entry<String,BackedUpFile> pair = (Map.Entry<String,BackedUpFile>)it.next();
-            System.out.println(pair.getValue().path);
-        }
+	    
+	    if(backedUpFiles.size() > 0) {
+	    	System.out.println("\n----------   BACKED UP FILES   ----------\n");
+	    	while (it.hasNext()) {
+	    		Map.Entry<String,BackedUpFile> pair = (Map.Entry<String,BackedUpFile>)it.next();
+	    		System.out.println(pair.getValue().path);
+	    	}
+	    } else {
+	    	System.out.println("\nYou don't have files backed up");
+	    }
+	    
+	    bufferedReader = new BufferedReader(new InputStreamReader(System.in));
+        System.out.println("\n\nPRESS ANY KEY TO CONTINUE");
+        try {
+			bufferedReader.readLine();
+		} catch (IOException e) {
+			e.printStackTrace();
+		}
 	}
 
 	private void deleteFile() {
@@ -457,7 +462,7 @@ public class Server{
 	                    }
 	                }).start();
 	            } else {
-	                System.out.println("WE'RE NOT ACCEPTING DIRECTORIES FOR NOW. INDIVIDUAL FILES ONLY."); // TODO
+	                System.out.println("WE'RE NOT ACCEPTING DIRECTORIES FOR NOW. INDIVIDUAL FILES ONLY.");
 	            }
 	        } else {
 	            System.out.println("THAT FILE DOESN'T EXIST! TRY AGAIN.");
