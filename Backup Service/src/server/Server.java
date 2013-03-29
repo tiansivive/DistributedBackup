@@ -731,6 +731,7 @@ public class Server{
 				DatagramPacket packet = new DatagramPacket(buf, buf.length, Values.multicast_backup_group_address, Values.multicast_backup_group_port);
 				packetsQueue.put(message.getFileID()+":"+message.getChunkNumber(), packet);
 				getControl_thread().updateRequestedBackups(new Header(head));
+				getControl_thread().updateOutRequestedBackupsCurrentReplication(message.getFileID(), message.getChunkNumber());
 				BackupChannelThread.getMulticast_backup_socket().send(packet);	
 				System.out.println("\n----------------SENT PUTCHUNK MESSAGE BECAUSE A REMOVED MESSAGE WAS RECEIVED----------------\n");
 				try {
