@@ -29,6 +29,8 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 
+import javax.sql.rowset.spi.SyncResolver;
+
 import protocols.Header;
 import protocols.ProtocolMessage;
 
@@ -237,40 +239,31 @@ public class Server{
 								
 								Integer chunkNum = chunksIterator.next();
 								System.out.println("CHUNKNUM = " + chunkNum);
-								if(onlySelectChunksWithMoreThanDesiredReplication){
-									if(getControl_thread().hasChunkGotMoreThanDesiredNumberOfReplicas(fileID, chunkNum)){
-										
-										
-										if(getBackup_thread().getBackedFiles().containsKey(fileID)){
-											if(getBackup_thread().getBackedFiles().get(fileID).contains(chunkNum)){
-												
+								boolean addItToTheList = false;
+								
+								if(onlySelectChunksWithMoreThanDesiredReplication) {
+									if(getControl_thread().hasChunkGotMoreThanDesiredNumberOfReplicas(fileID, chunkNum)) {
+										addItToTheList = true;
+									}
+								} else {
+									addItToTheList = true;
+								}
+								
+								if(addItToTheList) {	
+									synchronized (getBackup_thread().getBackedFiles()) {
+										ArrayList<Integer> tmpChunks = getBackup_thread().getBackedFiles().get(fileID);
+										if(tmpChunks != null) {
+											if(tmpChunks.contains(chunkNum)) {
 												File chunk = new File(Values.directory_to_backup_files + fileSeparator 
 														+ fileID + fileSeparator
 														+ "chunk_" + chunkNum);
 												amountOfSpaceReclaimed += chunk.length();
-												
+
 												System.out.println("ADDING CHUNK NUMBER " + chunkNum 
 														+ " FROM FILE " + fileID 
 														+ " TO REMOVE LIST");  
 												chunksSurplus.add(chunkNum);
 											}
-										}
-									}
-								}else{
-
-									if(getBackup_thread().getBackedFiles().containsKey(fileID)){
-										if(getBackup_thread().getBackedFiles().get(fileID).contains(chunkNum)){
-
-											File chunk = new File(Values.directory_to_backup_files + fileSeparator 
-													+ fileID + fileSeparator
-													+ "chunk_" + chunkNum);
-											amountOfSpaceReclaimed += chunk.length(); 
-
-											System.out.println("ADDING CHUNK NUMBER " + chunkNum 
-													+ " FROM FILE " + fileID 
-													+ " TO REMOVE LIST");
-
-											chunksSurplus.add(chunkNum);
 										}
 									}
 								}
@@ -297,7 +290,6 @@ public class Server{
 							if(amountOfSpaceReclaimed >= spaceToReclaim){
 								break;
 							}
-							
 							System.out.println("FINISHED CHUNK ITERATION CICLE");
 						}
 
@@ -334,8 +326,10 @@ public class Server{
 									+ fileID + fileSeparator
 									+ "chunk_" + chunkNum);		
 							
-							chunk.delete();
-							getBackup_thread().send_REMOVED_messageForChunk(fileID, chunkNum);
+							if(chunk.delete()) {
+								
+								getBackup_thread().send_REMOVED_messageForChunk(fileID, chunkNum);
+							}
 							chunksIterator.remove();
 						}
 						File fileDir = new File(Values.directory_to_backup_files + fileSeparator + fileID);
