@@ -245,8 +245,9 @@ public class BackupChannelThread extends ChannelThread {
 	public void send_REMOVED_messageForFile(String fileName) {
 		
 		int numberOfChunks = backedFiles.get(fileName).size();
-		while(numberOfChunks-- > 0){
+		while(numberOfChunks > 0){
 			send_REMOVED_messageForChunk(fileName, backedFiles.get(fileName).get(numberOfChunks-1)); //sends message in reverse order
+			numberOfChunks--;
 		}
 	
 	}
@@ -380,7 +381,7 @@ public class BackupChannelThread extends ChannelThread {
                     //System.out.format("%s: %s\n", event.kind().name(), child);
                     
                     // if file folder or chunk is deleted, remove it from the backedFiles map
-                    if(kind == ENTRY_DELETE) {
+                    if(kind == ENTRY_DELETE && !getServer().isReclaimingSpace()) {
                         
                         String fileName = child.getFileName().toString();
                         

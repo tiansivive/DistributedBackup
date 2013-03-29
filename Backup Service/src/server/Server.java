@@ -57,6 +57,7 @@ public class Server{
 	private HashSet<String> replicasRemovedFromOtherMachines; 
 	private boolean hasBackedUpConfigFiles;
 	private Gson gson;
+	private boolean isReclaimingSpace;
 	
 	private Server() {
 	    packetsQueue = new HashMap<String,DatagramPacket>();
@@ -68,6 +69,7 @@ public class Server{
         bufferedReader = null;
         numberOfChunksProcessed = 0;
         hasBackedUpConfigFiles = false;
+        isReclaimingSpace = false;
         gson = new Gson();
         
         Enumeration<NetworkInterface> nets;
@@ -209,7 +211,8 @@ public class Server{
 			int amountOfSpaceReclaimed = 0;
 
 			boolean onlySelectChunksWithMoreThanDesiredReplication = true;
-
+			isReclaimingSpace = true;
+			
 			Map<String, ArrayList<Integer>> chunksToBeRemoved = new HashMap<String,ArrayList<Integer>>();
 			synchronized (getControl_thread().getReplicationDegreeOfOthersChunks()) {
 
@@ -335,11 +338,11 @@ public class Server{
 							getBackup_thread().send_REMOVED_messageForChunk(fileID, chunkNum);
 							chunksIterator.remove();
 						}
-						File fileDir = new File(Values.directory_to_backup_files + fileSeparator 
-								+ fileID);
+						File fileDir = new File(Values.directory_to_backup_files + fileSeparator + fileID);
 						fileDir.delete();
 					}
 					System.out.println("DONE RECLAIMING SPACE");
+					isReclaimingSpace = false;
 				}
 			}
 		}
@@ -836,6 +839,10 @@ public class Server{
 	
 	public long getAvailableSpaceOnServer() {
 		return config.currentAvailableSpaceOnServer;
+	}
+	
+	public boolean isReclaimingSpace() {
+		return isReclaimingSpace;
 	}
 	
 	public void removeThisSpaceFromServer(int bytes) {
