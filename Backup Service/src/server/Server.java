@@ -768,7 +768,10 @@ public class Server{
 					+ message.getChunkNumber() + " "
 					+ desiredReplication;
 			
-			System.out.println("\nCREATED THIS MESSAGE FROM REMOVED MERSSAGE: " + head + "\n");
+			System.out.println("\n-------------------------------------------------\n" 
+								+Thread.currentThread().getName() + ":"
+								+ "\nCREATED THIS MESSAGE FROM REMOVED MERSSAGE: " + head 
+								+ "\n-------------------------------------------------\n");
 
 			String fileSeparator = System.getProperty("file.separator");
 			File chunk = new File(Values.directory_to_backup_files + fileSeparator
@@ -793,7 +796,8 @@ public class Server{
 				getControl_thread().updateRequestedBackups(new Header(head));
 				getControl_thread().updateOutRequestedBackupsCurrentReplication(message.getFileID(), message.getChunkNumber());
 				BackupChannelThread.getMulticast_backup_socket().send(packet);	
-				System.out.println("\n----------------SENT PUTCHUNK MESSAGE BECAUSE A REMOVED MESSAGE WAS RECEIVED----------------\n");
+				System.out.println("\n" + Thread.currentThread().getName() 
+										+ "\n----------------SENT PUTCHUNK MESSAGE BECAUSE A REMOVED MESSAGE WAS RECEIVED----------------\n");
 				try {
 					Thread.sleep(Values.default_supervisor_delay);
 					getControl_thread().notifyDaemonSupervisor();
@@ -801,10 +805,10 @@ public class Server{
 					e.printStackTrace();
 				}
 			}else{
-				System.out.println("FILE NOT FOUND");
+				System.out.println(Thread.currentThread().getName() + " FILE NOT FOUND");
 			}
 		}else{
-			System.out.println("SOMEBODY ALREADY SENT THE PUTCHUNK REPONSE TO A REMOVED MESSAGE!");
+			System.out.println(Thread.currentThread().getName() + " SOMEBODY ALREADY SENT THE PUTCHUNK REPONSE TO A REMOVED MESSAGE!");
 		}
 	}
 

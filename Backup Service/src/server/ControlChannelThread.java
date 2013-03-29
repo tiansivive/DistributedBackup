@@ -377,14 +377,22 @@ public class ControlChannelThread extends ChannelThread{
 		getServer().addRemovedMessageInfomation(fileID, Integer.toString(chunkNum));
 		int delay = Server.rand.nextInt(Values.backup_thread_response_delay)+100; // between 100 and 500 ms
 		Thread.sleep(delay);
-
-		System.out.println(Thread.currentThread().getName() + " RECEIVED REMOVED MESSAGE");
+		System.out.println(Thread.currentThread().getName() + " PROCESSING REMOVED MESSAGE AFTER WAITING " 
+									+ delay + " MILISECONDS");
+		
 		if(replicationDegreeOfOthersChunks.containsKey(fileID)){
 			if(replicationDegreeOfOthersChunks.get(fileID).containsKey(chunkNum)){
 				synchronized(replicationDegreeOfOthersChunks){
 					int currentReplication = replicationDegreeOfOthersChunks.get(fileID).get(chunkNum);
 					currentReplication--;
-					replicationDegreeOfOthersChunks.get(fileID).put(chunkNum, currentReplication);
+					replicationDegreeOfOthersChunks.get(fileID).put(chunkNum, currentReplication);				
+					System.out.println(Thread.currentThread().getName() 
+											+ "\n-------------------------------------------------\n"
+											+ "FILE: " + fileID + "\n"
+											+ "CHUNK: " + chunkNum + "\n"
+											+ "REPLICATION IS NOW " + currentReplication
+											+ "\n-------------------------------------------------\n");
+					
 					synchronized (storedMessagesInformation_Cleaner) {
 						//Activate cleaner to update information. In case replication drops below desired the machine will
 						//receive STORED messages, keeping the cleaner dormant until things quiet down 
