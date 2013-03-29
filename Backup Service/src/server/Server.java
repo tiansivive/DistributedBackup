@@ -1,16 +1,37 @@
 package server;
 
-import java.io.*;
-import java.net.*;
-import java.util.*;
+import java.io.BufferedReader;
+import java.io.File;
+import java.io.FileInputStream;
+import java.io.FileNotFoundException;
+import java.io.FileOutputStream;
+import java.io.FileReader;
+import java.io.FileWriter;
+import java.io.IOException;
+import java.io.InputStreamReader;
+import java.lang.reflect.Type;
+import java.net.DatagramPacket;
+import java.net.InetAddress;
+import java.net.NetworkInterface;
+import java.net.SocketException;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.Enumeration;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.Iterator;
+import java.util.Map;
 import java.util.Map.Entry;
+import java.util.Random;
+import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.TimeUnit;
 
-import protocols.*;
-import server.ChannelThread.ReplicationInfo;
+import protocols.Header;
+import protocols.ProtocolMessage;
 
-import com.google.gson.*;
-import com.google.gson.reflect.*;
-import java.lang.reflect.*;
+import com.google.gson.Gson;
+import com.google.gson.reflect.TypeToken;
 
 import constantValues.Values;
 
@@ -34,9 +55,6 @@ public class Server{
 	private HashSet<String> replicasRemovedFromOtherMachines; 
 	private boolean hasBackedUpConfigFiles;
 	private Gson gson;
-	private long initialAvailableSpaceOnServer; // in bytes, will be used for the space reclaim protocol
-	private long currentAvailableSpaceOnServer; // in bytes
-	
 	
 	private Server() {
 	    packetsQueue = new HashMap<String,DatagramPacket>();
@@ -62,6 +80,16 @@ public class Server{
         } catch (SocketException e) {
             e.printStackTrace();
         }
+
+        ScheduledExecutorService exec = Executors.newSingleThreadScheduledExecutor();
+        exec.scheduleAtFixedRate(new Runnable() {
+        	@Override
+        	public void run() {
+        		System.out.println("SERVER - SAVING CONFIG AND BACKEDUP FILES");
+        		saveConfigToJson();
+        		saveBackedUpFilesToJson();
+        	}
+        }, 0, 10, TimeUnit.SECONDS);
 	}
 	
 	public static Server getInstance() {
@@ -89,8 +117,6 @@ public class Server{
         try {
             bufferedReader = new BufferedReader(new FileReader("config.json"));
             config = gson.fromJson(bufferedReader, Config.class);
-            initialAvailableSpaceOnServer = config.availableSpaceOnServer * 1000 * 1000; //IN MEGABYTES
-            currentAvailableSpaceOnServer = initialAvailableSpaceOnServer; // TODO we have to save the current space
 
         } catch (FileNotFoundException e) {
             System.out.println("Configuration file is missing. Shutting down the server.");
@@ -508,7 +534,7 @@ public class Server{
 	public void hasReachedMinimumReplicationDegree(String fileId) {
 	    if(backedUpFiles.containsKey(fileId)) {
 	        backedUpFiles.get(fileId).hasAtLeastOneReplica = true;
-	        saveBackedUpFilesToJson();
+	        //saveBackedUpFilesToJson();
 	    }
 	}
 	
@@ -791,12 +817,26 @@ public class Server{
 	}
 	
 	public long getAvailableSpaceOnServer() {
-		return currentAvailableSpaceOnServer;
+		return config.currentAvailableSpaceOnServer;
 	}
 	
 	public void removeThisSpaceFromServer(int bytes) {
-		currentAvailableSpaceOnServer -= bytes;
+		config.currentAvailableSpaceOnServer -= bytes;
 		//System.out.println("REMOVED "+bytes+" BYTES FROM THE AVAILABLE SPACE!");
+	}
+	
+	private void saveConfigToJson() {
+		synchronized (config) {
+			String json = gson.toJson(config);
+
+	        try {
+	            FileWriter writer = new FileWriter("config.json");
+	            writer.write(json);
+	            writer.close();
+	        } catch (IOException e) {
+	            e.printStackTrace();
+	        }
+		}
 	}
 
 	public void addRemovedMessageInfomation(String fileID, String chunkNum){
@@ -852,7 +892,8 @@ public class Server{
     }
 
     private class Config {
-        public int availableSpaceOnServer; // KB
+        public int initialAvailableSpaceOnServer; // KB
+        public int currentAvailableSpaceOnServer;
         public String protocolVersion;
         public ArrayList<FileToBackup> filesToBackup;
     }
