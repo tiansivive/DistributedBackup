@@ -131,7 +131,7 @@ public class BackupChannelThread extends ChannelThread {
 	    int endOfHeaderIndex;
 	    if((endOfHeaderIndex = request.indexOf("\r\n\r\n")) != -1) { // find the end of the header
 	        String requestHeader = request.substring(0, endOfHeaderIndex);
-	        String headerPattern = "^PUTCHUNK 1.0 [a-z0-9]{64} [0-9]{1,6} [1-9]$";
+	        String headerPattern = "^PUTCHUNK (\\d\\.\\d)? [a-z0-9]{64} [0-9]{1,6} [1-9]$";
 	        System.out.println("------------------------Received backup request------------------------");
 	        String[] fields = requestHeader.split(" ");
 
