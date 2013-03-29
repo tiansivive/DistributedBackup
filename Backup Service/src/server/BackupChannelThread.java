@@ -214,9 +214,15 @@ public class BackupChannelThread extends ChannelThread {
 	        		} 
 	        	} else {
 	        		System.out.println("IGNORING PUTCHUNK REQUEST");
-	        		synchronized(ignorePUTCHUNKs){
-	        			this.ignorePUTCHUNKs.remove(fields[2]+":"+fields[3]);
-	        		}
+	        		
+	        		try {
+						Thread.sleep(20000); //WAITING SO THAT IT IGNORES POSSIBLE RESENDS OF REQUEST IF PACKETS ARE LOST 
+						synchronized(ignorePUTCHUNKs){
+		        			this.ignorePUTCHUNKs.remove(fields[2]+":"+fields[3]);
+		        		}
+					} catch (InterruptedException e){
+						e.printStackTrace();
+					}	
 	        	}
 	        }else{
 	        	System.out.println("Invalid header. Ignoring request");
