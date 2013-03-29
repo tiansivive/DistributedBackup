@@ -144,7 +144,7 @@ public class BackupChannelThread extends ChannelThread {
 	        	
 	        	try {
 	        		// waiting between 0 and 400 miliseconds before deciding if it will save the chunk
-	        		int delay = Server.rand.nextInt(Values.server_sending_packets_delay);
+	        		int delay = Server.rand.nextInt(Values.backup_thread_response_delay);
 	        		Thread.sleep(delay);
 	        	} catch (InterruptedException e1) {
 	        		e1.printStackTrace();

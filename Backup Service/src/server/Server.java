@@ -270,6 +270,15 @@ public class Server{
 					}
 					System.out.println("GOING TO REMOVE " + amountOfSpaceReclaimed + " BYTES");
 					
+					
+					try {
+						Thread.sleep(2000);
+					} catch (InterruptedException e) {
+						// TODO Auto-generated catch block
+						e.printStackTrace();
+					}
+					
+					
 					fileIterator = chunksToBeRemoved.keySet().iterator();
 					while(fileIterator.hasNext()){
 						

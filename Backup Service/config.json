@@ -27,8 +27,12 @@
 			"replicationDegree":1
 		},
 		{
-			"path":"Z:/tmp/teste/imagem2.jpg",
+			"path":"Z:/tmp/teste/imagem2f.jpg",
 			"replicationDegree":1
+		},
+		{
+			"path":"Z:/tmp/teste/Earth.jpg",
+			"replicationDegree":2
 		}
 	]
 }
