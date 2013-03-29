@@ -337,10 +337,11 @@ public class Server{
 							
 							if(chunk.delete()) {
 								synchronized (getBackup_thread().getBackedFiles()) {
-									ArrayList<Integer> tmpChunks = getBackup_thread().getBackedFiles().get(fileID);
+									/*ArrayList<Integer> tmpChunks = getBackup_thread().getBackedFiles().get(fileID);
 									if(tmpChunks != null) {
 										tmpChunks.remove(chunkNum);
-									}
+									}*/
+									getBackup_thread().getBackedFiles().get(fileID).remove(chunkNum);
 								}
 								getBackup_thread().send_REMOVED_messageForChunk(fileID, chunkNum);
 							}
