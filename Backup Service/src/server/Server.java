@@ -681,6 +681,8 @@ public class Server{
 					+ message.getFileID() + " "
 					+ message.getChunkNumber() + " "
 					+ desiredReplication;
+			
+			System.out.println("\nCREATED THIS MESSAGE FROM REMOVED MERSSAGE: " + head + "\n");
 
 			String fileSeparator = System.getProperty("file.separator");
 			File chunk = new File(Values.directory_to_backup_files + fileSeparator

@@ -359,7 +359,7 @@ public class ControlChannelThread extends ChannelThread{
 					currentReplication--;
 					replicationDegreeOfOthersChunks.get(fileID).put(chunkNum, currentReplication);
 					if(!hasChunkGotDesiredNumberOfReplicas(fileID, chunkNum)){
-						getServer().buildPacketFrom_REMOVED_Message(message, 0);//TODO get desired replication
+						getServer().buildPacketFrom_REMOVED_Message(message, this.desiredReplicationOfFiles.get(fileID));//TODO get desired replication
 					}
 				}
 			}else{
