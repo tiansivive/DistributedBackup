@@ -764,47 +764,48 @@ public class Server{
 	public void buildPacketFrom_REMOVED_Message(Header message, int desiredReplication) throws IOException {
 		
 	
-		if(this.replicasRemovedFromOtherMachines.contains(message.getFileID()+":"+message.getChunkNumber())){
-			synchronized (replicasRemovedFromOtherMachines) {
-				this.replicasRemovedFromOtherMachines.remove(message.getFileID()+":"+message.getChunkNumber());
+
+
+		String head = Values.backup_chunk_data_message_identifier + " "
+				+ Values.protocol_version + " "
+				+ message.getFileID() + " "
+				+ message.getChunkNumber() + " "
+				+ desiredReplication;
+
+		String fileSeparator = System.getProperty("file.separator");
+		File chunk = new File(Values.directory_to_backup_files + fileSeparator
+				+ message.getFileID() + fileSeparator
+				+ "chunk_" + message.getChunkNumber());
+
+		if(chunk.exists()) {
+			byte[] chunkData = new byte[Values.number_of_bytes_in_chunk];
+
+			FileInputStream input = new FileInputStream(chunk);
+			int chunkSize = input.read(chunkData);
+			input.close();
+			if(chunkSize < Values.number_of_bytes_in_chunk) {
+				byte[] temp = new byte[chunkSize];
+				System.arraycopy(chunkData, 0, temp, 0, chunkSize);
+				chunkData = temp;
 			}
-			
-			String head = Values.backup_chunk_data_message_identifier + " "
-					+ Values.protocol_version + " "
-					+ message.getFileID() + " "
-					+ message.getChunkNumber() + " "
-					+ desiredReplication;
-			
-			System.out.println("\n-------------------------------------------------\n" 
-								+Thread.currentThread().getName() + ":"
-								+ "\nCREATED THIS MESSAGE FROM REMOVED MERSSAGE: " + head 
-								+ "\n-------------------------------------------------\n");
 
-			String fileSeparator = System.getProperty("file.separator");
-			File chunk = new File(Values.directory_to_backup_files + fileSeparator
-					+ message.getFileID() + fileSeparator
-					+ "chunk_" + message.getChunkNumber());
-
-			if(chunk.exists()) {
-				byte[] chunkData = new byte[Values.number_of_bytes_in_chunk];
-
-				FileInputStream input = new FileInputStream(chunk);
-				int chunkSize = input.read(chunkData);
-				input.close();
-				if(chunkSize < Values.number_of_bytes_in_chunk) {
-					byte[] temp = new byte[chunkSize];
-					System.arraycopy(chunkData, 0, temp, 0, chunkSize);
-					chunkData = temp;
+			if(this.replicasRemovedFromOtherMachines.contains(message.getFileID()+":"+message.getChunkNumber())){
+				
+				synchronized (replicasRemovedFromOtherMachines) {
+					this.replicasRemovedFromOtherMachines.remove(message.getFileID()+":"+message.getChunkNumber());
 				}
-
 				byte[] buf = ProtocolMessage.toBytes(head, chunkData);
 				DatagramPacket packet = new DatagramPacket(buf, buf.length, Values.multicast_backup_group_address, Values.multicast_backup_group_port);
 				packetsQueue.put(message.getFileID()+":"+message.getChunkNumber(), packet);
 				getControl_thread().updateRequestedBackups(new Header(head));
 				getControl_thread().updateOutRequestedBackupsCurrentReplication(message.getFileID(), message.getChunkNumber());
 				BackupChannelThread.getMulticast_backup_socket().send(packet);	
-				System.out.println("\n" + Thread.currentThread().getName() 
-										+ "\n----------------SENT PUTCHUNK MESSAGE BECAUSE A REMOVED MESSAGE WAS RECEIVED----------------\n");
+				System.out.println("\n-------------------------------------------------\n" 
+								+ Thread.currentThread().getName() + ":"
+								+ "\nCREATED THIS MESSAGE FROM REMOVED MERSSAGE: " + head 
+								+ "\n-------------------------------------------------\n"
+								+ "----------------SENT PUTCHUNK MESSAGE BECAUSE A REMOVED MESSAGE WAS RECEIVED----------------\n");;
+
 				try {
 					Thread.sleep(Values.default_supervisor_delay);
 					getControl_thread().notifyDaemonSupervisor();
@@ -812,11 +813,12 @@ public class Server{
 					e.printStackTrace();
 				}
 			}else{
-				System.out.println(Thread.currentThread().getName() + " FILE NOT FOUND");
+				System.out.println(Thread.currentThread().getName() + " SOMEBODY ALREADY SENT THE PUTCHUNK REPONSE TO A REMOVED MESSAGE!");
 			}
 		}else{
-			System.out.println(Thread.currentThread().getName() + " SOMEBODY ALREADY SENT THE PUTCHUNK REPONSE TO A REMOVED MESSAGE!");
+			System.out.println(Thread.currentThread().getName() + " FILE NOT FOUND");
 		}
+
 	}
 
 	public static boolean fromThisMachine(InetAddress src){
