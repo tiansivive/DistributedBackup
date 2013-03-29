@@ -22,9 +22,11 @@ import java.nio.file.WatchEvent;
 import java.nio.file.WatchKey;
 import java.nio.file.WatchService;
 import java.nio.file.attribute.BasicFileAttributes;
+import java.security.KeyStore.Entry;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.Iterator;
 import java.util.Map;
 
 import javax.sql.rowset.spi.SyncResolver;
@@ -387,17 +389,39 @@ public class BackupChannelThread extends ChannelThread {
                                	send_REMOVED_messageForFile(fileName);
                                 backedFiles.remove(fileName);
                             }
+                            synchronized (getServer().getControl_thread().getReplicationDegreeOfOthersChunks()) {
+                            	HashMap<String,Map<Integer,Integer>> tmp = getServer().getControl_thread().getReplicationDegreeOfOthersChunks();
+                            	if(tmp.containsKey(fileName)) {
+                            		
+                            		Iterator<Integer> chunks = tmp.get(fileName).keySet().iterator();
+                            		while(chunks.hasNext()) {
+                            			int chunkNum = chunks.next();
+                            			int currentRep = tmp.get(fileName).get(chunkNum) - 1;
+                            			tmp.get(fileName).put(chunkNum, currentRep);
+                            		}
+                            	}
+							}
                         } else if(fileName.matches(Values.chunkPattern)) {
                             String fileId = child.getParent().getFileName().toString();
+                            int chunkNum = Integer.parseInt(fileName.substring(6));
                             
                             if(fileId.matches(Values.fileIdPattern)) {
                                 synchronized (backedFiles) {
-                                	send_REMOVED_messageForChunk(fileId, Integer.parseInt(fileName.substring(6)));
-                                    backedFiles.get(fileId).remove(Integer.parseInt(fileName.substring(6)));
+                                	send_REMOVED_messageForChunk(fileId, chunkNum);
+                                    backedFiles.get(fileId).remove(chunkNum);
                                     if(backedFiles.get(fileId).size() == 0) {
                                         backedFiles.remove(fileId);
                                     }
                                 }
+                                synchronized (getServer().getControl_thread().getReplicationDegreeOfOthersChunks()) {
+                                	HashMap<String,Map<Integer,Integer>> tmp = getServer().getControl_thread().getReplicationDegreeOfOthersChunks();
+                                	if(tmp.containsKey(fileId)) {
+                                		if(tmp.get(fileId).containsKey(chunkNum)) {
+                                			int currentRep = tmp.get(fileId).get(chunkNum) - 1;
+                                			tmp.get(fileId).put(chunkNum, currentRep);
+                                		}
+                                	}
+								}
                             }
                         }
                     }
