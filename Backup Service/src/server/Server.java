@@ -66,6 +66,7 @@ public class Server{
         bufferedReader = null;
         numberOfChunksProcessed = 0;
         hasBackedUpConfigFiles = false;
+        gson = new Gson();
         
         Enumeration<NetworkInterface> nets;
         
@@ -80,6 +81,15 @@ public class Server{
         } catch (SocketException e) {
             e.printStackTrace();
         }
+        
+        try {
+            bufferedReader = new BufferedReader(new FileReader("config.json"));
+            config = gson.fromJson(bufferedReader, Config.class);
+            
+        } catch (FileNotFoundException e) {
+            System.out.println("Configuration file is missing. Shutting down the server.");
+            System.exit(-1);
+        }
 
         ScheduledExecutorService exec = Executors.newSingleThreadScheduledExecutor();
         exec.scheduleAtFixedRate(new Runnable() {
@@ -87,7 +97,7 @@ public class Server{
         	public void run() {
         		System.out.println("SERVER - SAVING CONFIG AND BACKEDUP FILES");
         		saveConfigToJson();
-        		saveBackedUpFilesToJson();
+        		//saveBackedUpFilesToJson();
         	}
         }, 0, 10, TimeUnit.SECONDS);
 	}
@@ -111,18 +121,6 @@ public class Server{
 
 	public void mainLoop() {
 		
-		
-		gson = new Gson();
-
-        try {
-            bufferedReader = new BufferedReader(new FileReader("config.json"));
-            config = gson.fromJson(bufferedReader, Config.class);
-            
-        } catch (FileNotFoundException e) {
-            System.out.println("Configuration file is missing. Shutting down the server.");
-            System.exit(-1);
-        }
-        
         loadBackedUpFiles();
         run_threads();
         createNecessaryFiles();
