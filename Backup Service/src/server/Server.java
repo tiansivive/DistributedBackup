@@ -343,7 +343,7 @@ public class Server{
 									if(tmpChunks != null) {
 										tmpChunks.remove(chunkNum);
 									}*/
-									getBackup_thread().getBackedFiles().get(fileID).remove(chunkNum);
+									getBackup_thread().getBackedFiles().get(fileID).remove(new Integer(chunkNum));
 								}
 								getBackup_thread().send_REMOVED_messageForChunk(fileID, chunkNum);
 							}

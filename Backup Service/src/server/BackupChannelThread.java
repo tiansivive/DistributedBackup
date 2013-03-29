@@ -249,13 +249,15 @@ public class BackupChannelThread extends ChannelThread {
 	}
 	
 	public void send_REMOVED_messageForFile(String fileName) {
-		
-		int numberOfChunks = backedFiles.get(fileName).size();
-		while(numberOfChunks > 0){
-			send_REMOVED_messageForChunk(fileName, backedFiles.get(fileName).get(numberOfChunks-1)); //sends message in reverse order
-			numberOfChunks--;
+		try {
+			int numberOfChunks = backedFiles.get(fileName).size();
+			while(numberOfChunks > 0){
+				send_REMOVED_messageForChunk(fileName, backedFiles.get(fileName).get(numberOfChunks-1)); //sends message in reverse order
+				numberOfChunks--;
+			}
+		} catch (NullPointerException e) {
+			// ignore, it's a bad side effect from the WatchDir class
 		}
-	
 	}
 
 	public void send_REMOVED_messageForChunk(String fileId, int chunkNum){
