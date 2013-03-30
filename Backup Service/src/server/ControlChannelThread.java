@@ -57,7 +57,8 @@ public class ControlChannelThread extends ChannelThread{
 	private HashMap<String,Map<Integer,Integer>> replicationDegreeOfOthersChunks; //map<ChunkNo,numOfBackups>
 	private HashMap<String, Integer> desiredReplicationOfFiles;
 	private HashMap<InetAddress,Map<String,ArrayList<Integer>>> storedMessagesReceived;
-	private HashMap<String, Set<Integer> > doNotReplyMessages;
+	private HashMap<String,Set<Integer>> doNotReplyMessages;
+	private Set<String> deletedFilesInNetwork;
 
 	//private HashSet<String> completelyBackedUpFiles; 
 	private Thread backupRequestsCompletion_Supervisor;
@@ -86,11 +87,12 @@ public class ControlChannelThread extends ChannelThread{
 	private ControlChannelThread(Server server){
 		setName("ControlThread");
 		//completelyBackedUpFiles = new HashSet<String>();
-		this.doNotReplyMessages = new HashMap<String, Set<Integer>>();
+		doNotReplyMessages = new HashMap<String, Set<Integer>>();
 		replicationDegreeOfOthersChunks = new HashMap<String, Map<Integer,Integer>>();
 		storedMessagesReceived = new HashMap<InetAddress,Map<String,ArrayList<Integer>>>();
 		ourRequestedBackups = new HashMap<String,Map<Integer,ReplicationInfo> >();
 		desiredReplicationOfFiles = new HashMap<String,Integer>();
+		deletedFilesInNetwork = new HashSet<String>();
 		setServer(server);
 		this.initializeBackgroundMaintenanceProcesses();
 	}
@@ -131,9 +133,10 @@ public class ControlChannelThread extends ChannelThread{
 		if((endOfHeaderIndex = msg.indexOf("\r\n\r\n")) != -1) { // find the end of the header
 			String requestHeader = msg.substring(0, endOfHeaderIndex);
 			String headerPattern1 = "^[A-Z]{6,10} (\\d\\.\\d)? [a-z0-9]{64}( [0-9]{1,6})?$";
+			String headerPatternUpdate = "^UPDATE (\\d\\.\\d)( [a-z0-9]{64})?$";
 //			String headerPattern2 = "^GETCHUNK 1.1 [a-z0-9]{64} [0-9]{1,6}$";
 
-			if(requestHeader.matches(headerPattern1)) {
+			if(requestHeader.matches(headerPattern1) || requestHeader.matches(headerPatternUpdate)) {
 				String[] fields = requestHeader.split(" ");
 				Header message = new Header(requestHeader); 
 
@@ -164,6 +167,11 @@ public class ControlChannelThread extends ChannelThread{
 						process_DoNotReplyMessage(message);
 						break;
 					}
+					case "UPDATE":
+					{
+						process_UpdateMessage(fields);
+						break;
+					}
 					default:
 					{
 						System.out.println("Unrecognized message type. Ignoring request");
@@ -180,8 +188,16 @@ public class ControlChannelThread extends ChannelThread{
 			System.out.println("No <CRLF><CRLF> detected. Ignoring request");
 		}
 	}
+	
+	private void process_UpdateMessage(String []fields) {
+		if(fields.length == 2) {
+			System.out.println("SOMEONE IS ASKING FOR BEING UPDATED!!!");
+		} else if (fields.length == 3) {
+			System.out.println("SOMEONE IS UPDATING THE OTHERS");
+		}
+	}
 
-	private  void process_DoNotReplyMessage(Header message){
+	private void process_DoNotReplyMessage(Header message){
 
 		HashSet<Integer> tmp = new HashSet<Integer>();
 		String fileId = message.getFileID();
@@ -363,11 +379,15 @@ public class ControlChannelThread extends ChannelThread{
 			synchronized(desiredReplicationOfFiles){
 				desiredReplicationOfFiles.remove(message.getFileID());
 			}
-			synchronized(storedMessagesInformation_Cleaner){
-				storedMessagesInformation_Cleaner.notifyAll(); //update information on file after deleting
-			}
 		} else {
 			System.out.println("RECEIVED DELETE MSG FOR FILE "+message.getFileID()+" THAT IS NOT BACKED UP IN THIS PEER");
+		}
+		
+		// must save that this file was deleted from the network, even if it wasn't present in this peer
+		deletedFilesInNetwork.add(message.getFileID());
+		
+		synchronized(storedMessagesInformation_Cleaner){
+			storedMessagesInformation_Cleaner.notifyAll(); //update information on file
 		}
 	}
 
@@ -446,8 +466,6 @@ public class ControlChannelThread extends ChannelThread{
 											+ "UPDATING OUR BACKUP REQUEST CURRENT REPLICATION FROM "
 											+ currentReplication + " TO " + updatedReplication
 											+ "\n------------------------------------------------\n");
-					
-					
 				}else{
 					System.out.println("CATASTROPHIC FAILURE");
 					System.exit(-1);
@@ -457,7 +475,6 @@ public class ControlChannelThread extends ChannelThread{
 				System.exit(-1);
 			}
 		}
-		
 	}
 
 	public void setFilesDesiredReplication(String fileID, int desiredReplication){	
@@ -804,6 +821,22 @@ public class ControlChannelThread extends ChannelThread{
 
 										System.out.println(Thread.currentThread().getName() + " UPDATED StoredMessagesReceived FILE");
 									}
+									
+									synchronized (deletedFilesInNetwork) {
+										try
+										{
+											FileOutputStream fileOut = new FileOutputStream("DeletedFilesInNetwork.FAP");
+											ObjectOutputStream out = new ObjectOutputStream(fileOut);
+											//out.writeObject(toSaveDesiredReplication);
+											out.writeObject(deletedFilesInNetwork);
+											out.close();
+											fileOut.close();
+										} catch(IOException i) {
+											i.printStackTrace();
+										}
+
+										System.out.println(Thread.currentThread().getName() + " UPDATED DeletedFilesInNetwork FILE");
+									}
 									wait();
 								}
 							}
@@ -876,5 +909,13 @@ public class ControlChannelThread extends ChannelThread{
 	
 	public void setStoredMessagesReceived(HashMap<InetAddress,Map<String,ArrayList<Integer>>> storedMessagesReceived) {
 		this.storedMessagesReceived = storedMessagesReceived;
+	}
+	
+	public Set<String> getDeleteFilesInNetwork() {
+		return deletedFilesInNetwork;
+	}
+	
+	public void setDeletedFilesInNetwork(Set<String> deleted) {
+		deletedFilesInNetwork = deleted;
 	}
 }

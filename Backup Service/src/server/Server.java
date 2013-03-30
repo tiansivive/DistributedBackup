@@ -25,11 +25,10 @@ import java.util.Iterator;
 import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Random;
+import java.util.Set;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
-
-import javax.sql.rowset.spi.SyncResolver;
 
 import protocols.Header;
 import protocols.ProtocolMessage;
@@ -132,6 +131,7 @@ public class Server{
         loadBackedUpFiles();
         run_threads();
         createNecessaryFiles();
+        requestDeletedFilesUpdate();
 
         bufferedReader = new BufferedReader(new InputStreamReader(System.in));
         
@@ -192,6 +192,19 @@ public class Server{
             } catch (IOException e) {
             	e.printStackTrace();
             }
+		}
+	}
+	
+	private void requestDeletedFilesUpdate() {
+		String head = Values.UPDATE_DELETED_FILES_MESSAGE + " "
+                + Values.protocol_version;
+
+        byte[] buf = ProtocolMessage.toBytes(head, null);
+        DatagramPacket packet = new DatagramPacket(buf, buf.length, Values.multicast_control_group_address, Values.multicast_control_group_port);
+        try {
+			ControlChannelThread.getMulticast_control_socket().send(packet);
+		} catch (IOException e) {
+			e.printStackTrace();
 		}
 	}
 
@@ -370,6 +383,7 @@ public class Server{
 		HashMap<String, Integer> toInitializeDesiredReplication = new HashMap<String,Integer>();
 		HashMap<String, Map<Integer,Integer>> toInitializeReplicationDegree = new HashMap<String, Map<Integer,Integer>>();
 		HashMap<InetAddress,Map<String,ArrayList<Integer>>> toInitializeStoredMessages =  new HashMap<InetAddress,Map<String,ArrayList<Integer>>>();
+		Set<String> toInitializeDeletedFilesInNetwork = new HashSet<String>(); 
 
 		synchronized(getControl_thread().getReplicationDegreeOfOthersChunks()){
 			try
@@ -445,6 +459,34 @@ public class Server{
 					FileOutputStream fileOut = new FileOutputStream("DesiredReplicationOfFiles.FAP");
 					ObjectOutputStream out = new ObjectOutputStream(fileOut);
 					out.writeObject(toInitializeDesiredReplication);
+					out.close();
+					fileOut.close();
+				} catch(IOException i) {
+					i.printStackTrace();
+				}
+			} catch (IOException e) {
+				e.printStackTrace();
+			}
+		}
+		
+		synchronized (getControl_thread().getDeleteFilesInNetwork()) {
+			try
+			{
+				FileInputStream fileIn = new FileInputStream("DeletedFilesInNetwork.FAP");
+				ObjectInputStream in = new ObjectInputStream(fileIn);
+				toInitializeDeletedFilesInNetwork = (Set<String>) in.readObject();
+				getControl_thread().setDeletedFilesInNetwork(toInitializeDeletedFilesInNetwork);
+				in.close();
+				fileIn.close();
+				System.out.println("Loaded DeletedFilesInNetwork into memory");
+			} catch (ClassNotFoundException e) {
+				e.printStackTrace();
+			} catch(FileNotFoundException e){
+				try
+				{
+					FileOutputStream fileOut = new FileOutputStream("DeletedFilesInNetwork.FAP");
+					ObjectOutputStream out = new ObjectOutputStream(fileOut);
+					out.writeObject(toInitializeDeletedFilesInNetwork);
 					out.close();
 					fileOut.close();
 				} catch(IOException i) {

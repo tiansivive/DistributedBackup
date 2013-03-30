@@ -21,6 +21,7 @@ public class Values{
 	public static final String file_deleted_control_message_identifier = "DELETE";
 	public static final String diskSpace_reclaimed_control_message_identifier = "REMOVED";
 	public static final String do_not_reply_to_getchunk_message = "DONOTREPLY";
+	public static final String UPDATE_DELETED_FILES_MESSAGE = "UPDATE";
 	
 	public static final byte header_end_first_byte = 0xD;
 	public static final byte header_end_second_byte = 0xA;
