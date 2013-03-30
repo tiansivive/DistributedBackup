@@ -168,7 +168,7 @@ public class ControlChannelThread extends ChannelThread{
 					}
 					case "UPDATE":
 					{
-						process_UpdateMessage(fields);
+						process_UpdateMessage(fields,src);
 						break;
 					}
 					default:
@@ -188,11 +188,65 @@ public class ControlChannelThread extends ChannelThread{
 		}
 	}
 	
-	private void process_UpdateMessage(String []fields) {
+	private void process_UpdateMessage(String []fields, InetAddress src) {
 		if(fields[2].substring(0,12).compareTo("updateupdate") == 0) {
+			
 			System.out.println("SOMEONE IS ASKING FOR UPDATE");
+			
+			try {
+				// waiting between 0 and 400 miliseconds before decision
+				int delay = Server.rand.nextInt(Values.control_thread_update_delay+1);
+				Thread.sleep(delay);
+			} catch (InterruptedException e1) {
+				e1.printStackTrace();
+			}
+			
+			synchronized (doNotReplyMessages) {
+				if(doNotReplyMessages.containsKey(fields[2])) {
+					doNotReplyMessages.remove(fields[2]);
+					System.out.println("SOMEONE ELSE IS SENDING THE UPDATE!");
+					return;
+				}
+			}
+			
+			// SEND A DO NOT REPLY MESSAGE TO OTHERS
+			String head = new String(Values.UPDATE_DELETED_FILES_MESSAGE + " "
+					+ Values.protocol_version + " "
+					+ fields[2] + " "
+					+ 0);
+
+			byte[] buf = ProtocolMessage.toBytes(head, null);
+			DatagramPacket packet = new DatagramPacket(buf, buf.length, Values.multicast_control_group_address, Values.multicast_control_group_port);
+			try {
+				getMulticast_control_socket().send(packet);
+			} catch (IOException e1) {
+				e1.printStackTrace();
+			}
+
+			System.out.println("SENT A DO NOT REPLY MESSAGE TO OTHERS - I AM THE CHOSEN ONE!");
+			
+			for(String fileId : deletedFilesInNetwork) {
+				head = Values.UPDATE_DELETED_FILES_MESSAGE + " "
+		                + Values.protocol_version + " "
+		                + fileId; 
+
+		        buf = ProtocolMessage.toBytes(head, null);
+		        packet = new DatagramPacket(buf, buf.length, src, Values.multicast_control_group_port);
+		        
+		        try {
+					getMulticast_control_socket().send(packet);
+					/*
+					Thread.sleep(25);
+					getMulticast_control_socket().send(packet); // send each update 2x
+					*/
+					int delay = Server.rand.nextInt(50);
+					Thread.sleep(delay);
+				} catch (IOException | InterruptedException e) {
+					e.printStackTrace();
+				}
+			}
 		} else {
-			System.out.println("UPDATE IS BEING MADE!");
+			System.out.println("UPDATE IS BEING MADE. WE EITHER ASKED FOR IT, OR WILL UPDATE OURS ANYWAY");
 		}
 	}
 
