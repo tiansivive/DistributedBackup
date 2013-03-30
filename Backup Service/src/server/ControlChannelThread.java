@@ -210,7 +210,7 @@ public class ControlChannelThread extends ChannelThread{
 			}
 			
 			// SEND A DO NOT REPLY MESSAGE TO OTHERS
-			String head = new String(Values.UPDATE_DELETED_FILES_MESSAGE + " "
+			String head = new String(Values.do_not_reply_to_message + " "
 					+ Values.protocol_version + " "
 					+ fields[2] + " "
 					+ 0);
@@ -328,7 +328,7 @@ public class ControlChannelThread extends ChannelThread{
 				}
 
 				// SEND A DO NOT REPLY MESSAGE TO OTHERS
-				head = new String(Values.do_not_reply_to_getchunk_message + " "
+				head = new String(Values.do_not_reply_to_message + " "
 						+ Values.protocol_version + " "
 						+  message.getFileID() + " "
 						+ message.getChunkNumber());
