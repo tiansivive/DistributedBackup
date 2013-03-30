@@ -246,7 +246,39 @@ public class ControlChannelThread extends ChannelThread{
 				}
 			}
 		} else {
-			System.out.println("UPDATE IS BEING MADE. WE EITHER ASKED FOR IT, OR WILL UPDATE OURS ANYWAY");
+			System.out.println("WE'RE RECEIVING THE UPDATE");
+			
+			String fileId = fields[2];
+			
+			if(!deletedFilesInNetwork.contains(fileId)) {
+				deletedFilesInNetwork.add(fileId);
+
+				synchronized (getServer().getBackup_thread().getBackedFiles()) {
+					HashMap<String,ArrayList<Integer>> tmp = getServer().getBackup_thread().getBackedFiles();
+					if(tmp.containsKey(fileId)) {
+						System.out.println("THIS FILE "+fileId+" WAS REMOVED WHILE THIS PEER WAS OFF");
+						String fileSeparator = System.getProperty("file.separator");
+						File file = new File(Values.directory_to_backup_files+fileSeparator+fileId); 
+
+						if(file.isDirectory() && file.exists()){  
+							File[] chunks = file.listFiles();
+							for(File f : chunks) {
+								f.delete();
+							}
+							if(file.list().length == 0) {
+								file.delete();
+							}	
+							synchronized(replicationDegreeOfOthersChunks){
+								replicationDegreeOfOthersChunks.remove(fileId);
+							}
+							synchronized(desiredReplicationOfFiles){
+								desiredReplicationOfFiles.remove(fileId);
+							}
+						}
+						tmp.remove(fileId);
+					}
+				}
+			}
 		}
 	}
 
@@ -425,12 +457,15 @@ public class ControlChannelThread extends ChannelThread{
 			}
 			if(file.list().length == 0) {
 				file.delete();
-			}	
+			}
 			synchronized(replicationDegreeOfOthersChunks){
 				replicationDegreeOfOthersChunks.remove(message.getFileID());
 			}
 			synchronized(desiredReplicationOfFiles){
 				desiredReplicationOfFiles.remove(message.getFileID());
+			}
+			synchronized (getServer().getBackup_thread().getBackedFiles()) {
+				getServer().getBackup_thread().getBackedFiles().remove(message.getFileID());
 			}
 		} else {
 			System.out.println("RECEIVED DELETE MSG FOR FILE "+message.getFileID()+" THAT IS NOT BACKED UP IN THIS PEER");
