@@ -204,6 +204,7 @@ public class Server{
         DatagramPacket packet = new DatagramPacket(buf, buf.length, Values.multicast_control_group_address, Values.multicast_control_group_port);
         try {
 			ControlChannelThread.getMulticast_control_socket().send(packet);
+			System.out.println("SENT UPDATE DELETED FILES REQUEST");
 		} catch (IOException e) {
 			e.printStackTrace();
 		}
