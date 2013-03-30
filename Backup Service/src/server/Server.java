@@ -197,7 +197,8 @@ public class Server{
 	
 	private void requestDeletedFilesUpdate() {
 		String head = Values.UPDATE_DELETED_FILES_MESSAGE + " "
-                + Values.protocol_version;
+                + Values.protocol_version + " "
+                + "updateupdateupdateupdateupdateupdateupdateupdateupdateupdateupda"; // TODO needs improvements
 
         byte[] buf = ProtocolMessage.toBytes(head, null);
         DatagramPacket packet = new DatagramPacket(buf, buf.length, Values.multicast_control_group_address, Values.multicast_control_group_port);

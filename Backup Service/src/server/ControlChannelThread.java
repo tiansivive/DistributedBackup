@@ -133,10 +133,9 @@ public class ControlChannelThread extends ChannelThread{
 		if((endOfHeaderIndex = msg.indexOf("\r\n\r\n")) != -1) { // find the end of the header
 			String requestHeader = msg.substring(0, endOfHeaderIndex);
 			String headerPattern1 = "^[A-Z]{6,10} (\\d\\.\\d)? [a-z0-9]{64}( [0-9]{1,6})?$";
-			String headerPatternUpdate = "^UPDATE (\\d\\.\\d)( [a-z0-9]{64})?$";
 //			String headerPattern2 = "^GETCHUNK 1.1 [a-z0-9]{64} [0-9]{1,6}$";
 
-			if(requestHeader.matches(headerPattern1) || requestHeader.matches(headerPatternUpdate)) {
+			if(requestHeader.matches(headerPattern1)) {
 				String[] fields = requestHeader.split(" ");
 				Header message = new Header(requestHeader); 
 
@@ -190,10 +189,10 @@ public class ControlChannelThread extends ChannelThread{
 	}
 	
 	private void process_UpdateMessage(String []fields) {
-		if(fields.length == 2) {
-			System.out.println("SOMEONE IS ASKING FOR BEING UPDATED!!!");
-		} else if (fields.length == 3) {
-			System.out.println("SOMEONE IS UPDATING THE OTHERS");
+		if(fields[2].substring(0,12).compareTo("updateupdate") == 0) {
+			System.out.println("SOMEONE IS ASKING FOR UPDATE");
+		} else {
+			System.out.println("UPDATE IS BEING MADE!");
 		}
 	}
 
