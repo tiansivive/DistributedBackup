@@ -808,44 +808,10 @@ public class ControlChannelThread extends ChannelThread{
 									
 									//UPDATE ReplicationDegreeOfOthersChunks FILE
 									synchronized(replicationDegreeOfOthersChunks){
-
-										/*
-										HashMap<String, Map<Integer,Integer>> toSaveReplicationDegree = null;
-										try
-										{
-											FileInputStream fileIn = new FileInputStream("ReplicationDegreeOfOthersChunks.FAP");
-											ObjectInputStream in = new ObjectInputStream(fileIn);
-											toSaveReplicationDegree = (HashMap<String,Map<Integer,Integer>>) in.readObject();
-											in.close();
-											fileIn.close();
-										} catch (IOException | ClassNotFoundException e) {
-											e.printStackTrace();
-										} 
-										
-										Iterator<String> filesIterator = replicationDegreeOfOthersChunks.keySet().iterator();
-										while(filesIterator.hasNext()){ //Update information on file with information on replicationDegreeOfChunks
-
-											String fileID = (String)filesIterator.next();
-
-											if(toSaveReplicationDegree.containsKey(fileID)){
-
-												Iterator<Integer> chunksIterator = replicationDegreeOfOthersChunks.get(fileID).keySet().iterator();
-												while(chunksIterator.hasNext()){
-
-													int chunkNumber = chunksIterator.next();
-													toSaveReplicationDegree.get(fileID).put(chunkNumber, replicationDegreeOfOthersChunks.get(fileID).get(chunkNumber));	
-												}
-											}else{
-												toSaveReplicationDegree.put(fileID, replicationDegreeOfOthersChunks.get(fileID));
-											}
-										}
-										*/
-
 										try
 										{
 											FileOutputStream fileOut = new FileOutputStream("ReplicationDegreeOfOthersChunks.FAP");
 											ObjectOutputStream out = new ObjectOutputStream(fileOut);
-											//out.writeObject(toSaveReplicationDegree);
 											out.writeObject(replicationDegreeOfOthersChunks);
 											out.close();
 											fileOut.close();
@@ -853,45 +819,21 @@ public class ControlChannelThread extends ChannelThread{
 											i.printStackTrace();
 										}
 										System.out.println(Thread.currentThread().getName() + " UPDATED ReplicationDegreeOfOthersChunks FILE");
-										//replicationDegreeOfOthersChunks.clear();
 									}
 									
 									//UPDATE desiredReplicationOfFiles FILE
 									synchronized(desiredReplicationOfFiles){
-										/*
-										HashMap<String,Integer> toSaveDesiredReplication = null;
-										try
-										{
-											FileInputStream fileIn = new FileInputStream("DesiredReplicationOfFiles.FAP");
-											ObjectInputStream in = new ObjectInputStream(fileIn);
-											toSaveDesiredReplication = (HashMap<String,Integer>) in.readObject();
-											in.close();
-											fileIn.close();
-										} catch (IOException | ClassNotFoundException e) {
-											e.printStackTrace();
-										} 
-										
-										Iterator<String> filesIterator = desiredReplicationOfFiles.keySet().iterator();
-										while(filesIterator.hasNext()){ 
-											String fileID = (String)filesIterator.next();
-											toSaveDesiredReplication.put(fileID, desiredReplicationOfFiles.get(fileID));
-										}
-										*/
-										
 										try
 										{
 											FileOutputStream fileOut = new FileOutputStream("DesiredReplicationOfFiles.FAP");
 											ObjectOutputStream out = new ObjectOutputStream(fileOut);
-											//out.writeObject(toSaveDesiredReplication);
 											out.writeObject(desiredReplicationOfFiles);
 											out.close();
 											fileOut.close();
 										} catch(IOException i) {
 											i.printStackTrace();
 										}
-
 										System.out.println(Thread.currentThread().getName() + " UPDATED DesiredReplicationOfFiles FILE");
-										//replicationDegreeOfOthersChunks.clear();
 									}
 
 									synchronized (storedMessagesReceived) {
@@ -899,14 +841,12 @@ public class ControlChannelThread extends ChannelThread{
 										{
 											FileOutputStream fileOut = new FileOutputStream("StoredMessagesReceived.FAP");
 											ObjectOutputStream out = new ObjectOutputStream(fileOut);
-											//out.writeObject(toSaveDesiredReplication);
 											out.writeObject(storedMessagesReceived);
 											out.close();
 											fileOut.close();
 										} catch(IOException i) {
 											i.printStackTrace();
 										}
-
 										System.out.println(Thread.currentThread().getName() + " UPDATED StoredMessagesReceived FILE");
 									}
 									
@@ -915,14 +855,12 @@ public class ControlChannelThread extends ChannelThread{
 										{
 											FileOutputStream fileOut = new FileOutputStream("DeletedFilesInNetwork.FAP");
 											ObjectOutputStream out = new ObjectOutputStream(fileOut);
-											//out.writeObject(toSaveDesiredReplication);
 											out.writeObject(deletedFilesInNetwork);
 											out.close();
 											fileOut.close();
 										} catch(IOException i) {
 											i.printStackTrace();
 										}
-
 										System.out.println(Thread.currentThread().getName() + " UPDATED DeletedFilesInNetwork FILE");
 									}
 									wait();

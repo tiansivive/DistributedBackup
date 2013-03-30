@@ -66,7 +66,7 @@ public class BackupChannelThread extends ChannelThread {
 	    
 	    try {
             backupDirectoryWatcher = new WatchDir();
-            backupDirectoryWatcher.start();
+            //backupDirectoryWatcher.start(); // IT DOESN'T WORK AT FEUP
         } catch (IOException e) {
             e.printStackTrace();
         }
