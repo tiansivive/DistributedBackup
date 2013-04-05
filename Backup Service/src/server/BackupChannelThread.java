@@ -131,11 +131,11 @@ public class BackupChannelThread extends ChannelThread {
 	    int endOfHeaderIndex;
 	    if((endOfHeaderIndex = request.indexOf("\r\n\r\n")) != -1) { // find the end of the header
 	        String requestHeader = request.substring(0, endOfHeaderIndex);
-	        String headerPattern = "^PUTCHUNK (\\d\\.\\d)? [a-z0-9]{64} [0-9]{1,6} [1-9]$";
+	        String headerPattern = "^PUTCHUNK (\\d\\.\\d)? [a-zA-Z0-9]{64} [0-9]{1,6} [1-9]$";
 	        System.out.println("------------------------Received backup request------------------------");
 	        String[] fields = requestHeader.split(" ");
 
-	        if(requestHeader.matches(headerPattern)) {
+	        if(requestHeader.trim().matches(headerPattern)) {
 	        	
 	        	getServer().getControl_thread().setFilesDesiredReplication(fields[2], Integer.parseInt(fields[4]));
 	        	

@@ -43,7 +43,7 @@ public class Values{
 	public static final int number_of_attempts_to_resend_chunks = 5;
 	public static final int number_of_attempts_to_delete_files = 15;
 	
-	public static final String fileIdPattern = "^[0-9a-z]{64}$";
+	public static final String fileIdPattern = "^[0-9A-Za-z]{64}$";
 	public static final String chunkPattern = "^chunk_[0-9]{1,6}$";
 	
 	public static int getMulticast_control_group_port() {

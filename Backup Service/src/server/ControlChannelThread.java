@@ -132,10 +132,10 @@ public class ControlChannelThread extends ChannelThread{
 		int endOfHeaderIndex;
 		if((endOfHeaderIndex = msg.indexOf("\r\n\r\n")) != -1) { // find the end of the header
 			String requestHeader = msg.substring(0, endOfHeaderIndex);
-			String headerPattern1 = "^[A-Z]{6,10} (\\d\\.\\d)? [a-z0-9]{64}( [0-9]{1,6})?$";
+			String headerPattern1 = "^[A-Z]{6,10}( \\d\\.\\d)? [a-zA-Z0-9]{64}( [0-9]{1,6})?$";
 //			String headerPattern2 = "^GETCHUNK 1.1 [a-z0-9]{64} [0-9]{1,6}$";
 
-			if(requestHeader.matches(headerPattern1)) {
+			if(requestHeader.trim().matches(headerPattern1)) {
 				String[] fields = requestHeader.split(" ");
 				Header message = new Header(requestHeader); 
 

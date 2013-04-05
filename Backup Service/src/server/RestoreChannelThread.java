@@ -96,9 +96,9 @@ public class RestoreChannelThread extends ChannelThread{
 	    int endOfHeaderIndex;
 	    if((endOfHeaderIndex = request.indexOf("\r\n\r\n")) != -1) { // find the end of the header
 	        String requestHeader = request.substring(0, endOfHeaderIndex);
-	        String headerPattern = "^CHUNK 1.0 [a-z0-9]{64} [0-9]{1,6}$";
+	        String headerPattern = "^CHUNK 1.0 [a-zA-Z0-9]{64} [0-9]{1,6}$";
 
-	        if(requestHeader.matches(headerPattern)) {
+	        if(requestHeader.trim().matches(headerPattern)) {
 	            String[] fields = requestHeader.split(" ");
 	            
 	            synchronized (receivedChunkMessages) {
