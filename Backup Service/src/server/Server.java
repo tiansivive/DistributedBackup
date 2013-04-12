@@ -537,7 +537,7 @@ public class Server{
 	                    public void run() {
 	                        String fileIdentifier = HashString.getFileIdentifier(file);
 	                        String head = Values.file_deleted_control_message_identifier + " "
-	                                + Values.protocol_version + " "
+	                               // + Values.protocol_version + " "
 	                                + fileIdentifier;
 
 	                        byte[] buf = ProtocolMessage.toBytes(head, null);
@@ -549,6 +549,27 @@ public class Server{
 	                        synchronized (backedUpFiles) {
 	                        	backedUpFiles.remove(file.getName());
 							}
+	                        synchronized(getControl_thread().getStoredMessagesReceived()){
+	                        	
+	                        	Set<InetAddress> keys = getControl_thread().getStoredMessagesReceived().keySet();
+	                        	
+	                        	Iterator<InetAddress> it = keys.iterator();
+	                        	
+	                        	while(it.hasNext()) {
+	                        		
+	                        		InetAddress key = it.next();
+	                        		if(getControl_thread().getStoredMessagesReceived().get(key).containsKey(fileIdentifier)){
+	                        			getControl_thread().getStoredMessagesReceived().get(key).remove(fileIdentifier);
+	                        		}	
+	                        	}
+	                        }
+	                        synchronized(getControl_thread().getDesiredReplicationOfFiles()){
+	                        	getControl_thread().getDesiredReplicationOfFiles().remove(fileIdentifier);
+	                        }
+	                        synchronized(getControl_thread().getReplicationDegreeOfOthersChunks()){
+	                        	getControl_thread().getReplicationDegreeOfOthersChunks().remove(fileIdentifier);
+	                        }
+	                        
 	                        
 	                        for(int i = 0; i < Values.number_of_attempts_to_delete_files; i++) {
 	                            try {
